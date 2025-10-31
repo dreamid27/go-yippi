@@ -10,44 +10,64 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"example.com/go-yippi/ent/user"
+	"example.com/go-yippi/ent/product"
 )
 
-// UserCreate is the builder for creating a User entity.
-type UserCreate struct {
+// ProductCreate is the builder for creating a Product entity.
+type ProductCreate struct {
 	config
-	mutation *UserMutation
+	mutation *ProductMutation
 	hooks    []Hook
 }
 
-// SetAge sets the "age" field.
-func (_c *UserCreate) SetAge(v int) *UserCreate {
-	_c.mutation.SetAge(v)
+// SetDescription sets the "description" field.
+func (_c *ProductCreate) SetDescription(v string) *ProductCreate {
+	_c.mutation.SetDescription(v)
+	return _c
+}
+
+// SetPrice sets the "price" field.
+func (_c *ProductCreate) SetPrice(v float64) *ProductCreate {
+	_c.mutation.SetPrice(v)
+	return _c
+}
+
+// SetNillablePrice sets the "price" field if the given value is not nil.
+func (_c *ProductCreate) SetNillablePrice(v *float64) *ProductCreate {
+	if v != nil {
+		_c.SetPrice(*v)
+	}
 	return _c
 }
 
 // SetName sets the "name" field.
-func (_c *UserCreate) SetName(v string) *UserCreate {
+func (_c *ProductCreate) SetName(v string) *ProductCreate {
 	_c.mutation.SetName(v)
 	return _c
 }
 
 // SetNillableName sets the "name" field if the given value is not nil.
-func (_c *UserCreate) SetNillableName(v *string) *UserCreate {
+func (_c *ProductCreate) SetNillableName(v *string) *ProductCreate {
 	if v != nil {
 		_c.SetName(*v)
 	}
 	return _c
 }
 
+// SetImageURL sets the "image_url" field.
+func (_c *ProductCreate) SetImageURL(v string) *ProductCreate {
+	_c.mutation.SetImageURL(v)
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
-func (_c *UserCreate) SetCreatedAt(v time.Time) *UserCreate {
+func (_c *ProductCreate) SetCreatedAt(v time.Time) *ProductCreate {
 	_c.mutation.SetCreatedAt(v)
 	return _c
 }
 
 // SetNillableCreatedAt sets the "created_at" field if the given value is not nil.
-func (_c *UserCreate) SetNillableCreatedAt(v *time.Time) *UserCreate {
+func (_c *ProductCreate) SetNillableCreatedAt(v *time.Time) *ProductCreate {
 	if v != nil {
 		_c.SetCreatedAt(*v)
 	}
@@ -55,32 +75,32 @@ func (_c *UserCreate) SetNillableCreatedAt(v *time.Time) *UserCreate {
 }
 
 // SetUpdatedAt sets the "updated_at" field.
-func (_c *UserCreate) SetUpdatedAt(v time.Time) *UserCreate {
+func (_c *ProductCreate) SetUpdatedAt(v time.Time) *ProductCreate {
 	_c.mutation.SetUpdatedAt(v)
 	return _c
 }
 
 // SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
-func (_c *UserCreate) SetNillableUpdatedAt(v *time.Time) *UserCreate {
+func (_c *ProductCreate) SetNillableUpdatedAt(v *time.Time) *ProductCreate {
 	if v != nil {
 		_c.SetUpdatedAt(*v)
 	}
 	return _c
 }
 
-// Mutation returns the UserMutation object of the builder.
-func (_c *UserCreate) Mutation() *UserMutation {
+// Mutation returns the ProductMutation object of the builder.
+func (_c *ProductCreate) Mutation() *ProductMutation {
 	return _c.mutation
 }
 
-// Save creates the User in the database.
-func (_c *UserCreate) Save(ctx context.Context) (*User, error) {
+// Save creates the Product in the database.
+func (_c *ProductCreate) Save(ctx context.Context) (*Product, error) {
 	_c.defaults()
 	return withHooks(ctx, _c.sqlSave, _c.mutation, _c.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (_c *UserCreate) SaveX(ctx context.Context) *User {
+func (_c *ProductCreate) SaveX(ctx context.Context) *Product {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -89,57 +109,62 @@ func (_c *UserCreate) SaveX(ctx context.Context) *User {
 }
 
 // Exec executes the query.
-func (_c *UserCreate) Exec(ctx context.Context) error {
+func (_c *ProductCreate) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *UserCreate) ExecX(ctx context.Context) {
+func (_c *ProductCreate) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // defaults sets the default values of the builder before save.
-func (_c *UserCreate) defaults() {
+func (_c *ProductCreate) defaults() {
+	if _, ok := _c.mutation.Price(); !ok {
+		v := product.DefaultPrice
+		_c.mutation.SetPrice(v)
+	}
 	if _, ok := _c.mutation.Name(); !ok {
-		v := user.DefaultName
+		v := product.DefaultName
 		_c.mutation.SetName(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		v := user.DefaultCreatedAt()
+		v := product.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		v := user.DefaultUpdatedAt()
+		v := product.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (_c *UserCreate) check() error {
-	if _, ok := _c.mutation.Age(); !ok {
-		return &ValidationError{Name: "age", err: errors.New(`ent: missing required field "User.age"`)}
+func (_c *ProductCreate) check() error {
+	if _, ok := _c.mutation.Description(); !ok {
+		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "Product.description"`)}
 	}
-	if v, ok := _c.mutation.Age(); ok {
-		if err := user.AgeValidator(v); err != nil {
-			return &ValidationError{Name: "age", err: fmt.Errorf(`ent: validator failed for field "User.age": %w`, err)}
-		}
+	if _, ok := _c.mutation.Price(); !ok {
+		return &ValidationError{Name: "price", err: errors.New(`ent: missing required field "Product.price"`)}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "User.name"`)}
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "Product.name"`)}
+	}
+	if _, ok := _c.mutation.ImageURL(); !ok {
+		return &ValidationError{Name: "image_url", err: errors.New(`ent: missing required field "Product.image_url"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "User.created_at"`)}
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Product.created_at"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
-		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "User.updated_at"`)}
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "Product.updated_at"`)}
 	}
 	return nil
 }
 
-func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
+func (_c *ProductCreate) sqlSave(ctx context.Context) (*Product, error) {
 	if err := _c.check(); err != nil {
 		return nil, err
 	}
@@ -157,51 +182,59 @@ func (_c *UserCreate) sqlSave(ctx context.Context) (*User, error) {
 	return _node, nil
 }
 
-func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
+func (_c *ProductCreate) createSpec() (*Product, *sqlgraph.CreateSpec) {
 	var (
-		_node = &User{config: _c.config}
-		_spec = sqlgraph.NewCreateSpec(user.Table, sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt))
+		_node = &Product{config: _c.config}
+		_spec = sqlgraph.NewCreateSpec(product.Table, sqlgraph.NewFieldSpec(product.FieldID, field.TypeInt))
 	)
-	if value, ok := _c.mutation.Age(); ok {
-		_spec.SetField(user.FieldAge, field.TypeInt, value)
-		_node.Age = value
+	if value, ok := _c.mutation.Description(); ok {
+		_spec.SetField(product.FieldDescription, field.TypeString, value)
+		_node.Description = value
+	}
+	if value, ok := _c.mutation.Price(); ok {
+		_spec.SetField(product.FieldPrice, field.TypeFloat64, value)
+		_node.Price = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
-		_spec.SetField(user.FieldName, field.TypeString, value)
+		_spec.SetField(product.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
+	if value, ok := _c.mutation.ImageURL(); ok {
+		_spec.SetField(product.FieldImageURL, field.TypeString, value)
+		_node.ImageURL = value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
-		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
+		_spec.SetField(product.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
-		_spec.SetField(user.FieldUpdatedAt, field.TypeTime, value)
+		_spec.SetField(product.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
 	}
 	return _node, _spec
 }
 
-// UserCreateBulk is the builder for creating many User entities in bulk.
-type UserCreateBulk struct {
+// ProductCreateBulk is the builder for creating many Product entities in bulk.
+type ProductCreateBulk struct {
 	config
 	err      error
-	builders []*UserCreate
+	builders []*ProductCreate
 }
 
-// Save creates the User entities in the database.
-func (_c *UserCreateBulk) Save(ctx context.Context) ([]*User, error) {
+// Save creates the Product entities in the database.
+func (_c *ProductCreateBulk) Save(ctx context.Context) ([]*Product, error) {
 	if _c.err != nil {
 		return nil, _c.err
 	}
 	specs := make([]*sqlgraph.CreateSpec, len(_c.builders))
-	nodes := make([]*User, len(_c.builders))
+	nodes := make([]*Product, len(_c.builders))
 	mutators := make([]Mutator, len(_c.builders))
 	for i := range _c.builders {
 		func(i int, root context.Context) {
 			builder := _c.builders[i]
 			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*UserMutation)
+				mutation, ok := m.(*ProductMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -248,7 +281,7 @@ func (_c *UserCreateBulk) Save(ctx context.Context) ([]*User, error) {
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (_c *UserCreateBulk) SaveX(ctx context.Context) []*User {
+func (_c *ProductCreateBulk) SaveX(ctx context.Context) []*Product {
 	v, err := _c.Save(ctx)
 	if err != nil {
 		panic(err)
@@ -257,13 +290,13 @@ func (_c *UserCreateBulk) SaveX(ctx context.Context) []*User {
 }
 
 // Exec executes the query.
-func (_c *UserCreateBulk) Exec(ctx context.Context) error {
+func (_c *ProductCreateBulk) Exec(ctx context.Context) error {
 	_, err := _c.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_c *UserCreateBulk) ExecX(ctx context.Context) {
+func (_c *ProductCreateBulk) ExecX(ctx context.Context) {
 	if err := _c.Exec(ctx); err != nil {
 		panic(err)
 	}

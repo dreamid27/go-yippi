@@ -1,5 +1,7 @@
 package config
 
+import "os"
+
 // Config holds application configuration
 type Config struct {
 	Server   ServerConfig
@@ -18,15 +20,21 @@ type DatabaseConfig struct {
 
 // Load loads configuration from environment or files
 func Load() *Config {
-	// TODO: Implement configuration loading
 	return &Config{
 		Server: ServerConfig{
-			Port: "8080",
-			Host: "0.0.0.0",
+			Port: getEnv("SERVER_PORT", "8080"),
+			Host: getEnv("SERVER_HOST", "0.0.0.0"),
 		},
 		Database: DatabaseConfig{
-			Driver: "sqlite3",
-			DSN:    "file:ent?mode=memory&cache=shared&_fk=1",
+			Driver: getEnv("DB_DRIVER", "postgres"),
+			DSN:    getEnv("DB_DSN", "host=localhost port=5432 user=admin dbname=go-test password=adminadmin sslmode=disable"),
 		},
 	}
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

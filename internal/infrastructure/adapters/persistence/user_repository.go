@@ -20,7 +20,7 @@ func (r *UserRepositoryImpl) Create(ctx context.Context, user *entities.User) er
 	created, err := r.client.User.
 		Create().
 		SetName(user.Name).
-		SetEmail(user.Email).
+		SetAge(user.Age).
 		Save(ctx)
 	if err != nil {
 		return err
@@ -39,7 +39,7 @@ func (r *UserRepositoryImpl) GetByID(ctx context.Context, id int) (*entities.Use
 	return &entities.User{
 		ID:    found.ID,
 		Name:  found.Name,
-		Email: found.Email,
+		Age: found.Age,
 	}, nil
 }
 
@@ -54,7 +54,7 @@ func (r *UserRepositoryImpl) List(ctx context.Context) ([]*entities.User, error)
 		users = append(users, &entities.User{
 			ID:    u.ID,
 			Name:  u.Name,
-			Email: u.Email,
+			Age: u.Age,
 		})
 	}
 
@@ -65,7 +65,7 @@ func (r *UserRepositoryImpl) Update(ctx context.Context, user *entities.User) er
 	_, err := r.client.User.
 		UpdateOneID(user.ID).
 		SetName(user.Name).
-		SetEmail(user.Email).
+		SetAge(user.Age).
 		Save(ctx)
 	return err
 }

@@ -1,0 +1,14 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/main ./cmd/api"
+  bin = "./tmp/main"
+  include_ext = ["go", "tpl", "tmpl", "html", "css"]
+  exclude_dir = ["tmp", "vendor"]
+
+[log]
+  level = "info"
+
+[misc]
+  clean_on_exit = true

@@ -4,7 +4,7 @@ package handlers
 type CreateUserRequest struct {
 	Body struct {
 		Name  string `json:"name" minLength:"1" doc:"User name"`
-		Email string `json:"email" format:"email" doc:"User email"`
+		Age int `json:"age" format:"age" doc:"User age"`
 	}
 }
 
@@ -13,7 +13,7 @@ type UserResponse struct {
 	Body struct {
 		ID    int    `json:"id"`
 		Name  string `json:"name"`
-		Email string `json:"email"`
+		Age int `json:"age"`
 	}
 }
 
@@ -28,7 +28,7 @@ type ListUsersResponse struct {
 		Users []struct {
 			ID    int    `json:"id"`
 			Name  string `json:"name"`
-			Email string `json:"email"`
+			Age int `json:"age"`
 		} `json:"users"`
 	}
 }
@@ -38,7 +38,7 @@ type UpdateUserRequest struct {
 	ID   int `path:"id" doc:"User ID"`
 	Body struct {
 		Name  string `json:"name" minLength:"1" doc:"User name"`
-		Email string `json:"email" format:"email" doc:"User email"`
+		Age int `json:"age" format:"age" doc:"User age"`
 	}
 }
 

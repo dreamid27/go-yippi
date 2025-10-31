@@ -8,7 +8,7 @@ require (
 	entgo.io/ent v0.14.5
 	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/gofiber/fiber/v2 v2.52.9
-	github.com/mattn/go-sqlite3 v1.14.32
+	github.com/lib/pq v1.10.9
 )
 
 require (
@@ -25,6 +25,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/mattn/go-sqlite3 v1.14.32 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect

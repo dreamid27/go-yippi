@@ -71,7 +71,7 @@ func (h *UserHandler) RegisterRoutes(api huma.API) {
 func (h *UserHandler) CreateUser(ctx context.Context, input *CreateUserRequest) (*UserResponse, error) {
 	user := &entities.User{
 		Name:  input.Body.Name,
-		Email: input.Body.Email,
+		Age: input.Body.Age,
 	}
 
 	err := h.service.CreateUser(ctx, user)
@@ -82,7 +82,7 @@ func (h *UserHandler) CreateUser(ctx context.Context, input *CreateUserRequest) 
 	resp := &UserResponse{}
 	resp.Body.ID = user.ID
 	resp.Body.Name = user.Name
-	resp.Body.Email = user.Email
+	resp.Body.Age = user.Age
 
 	return resp, nil
 }
@@ -97,13 +97,13 @@ func (h *UserHandler) GetUsers(ctx context.Context, input *struct{}) (*ListUsers
 	resp.Body.Users = make([]struct {
 		ID    int    `json:"id"`
 		Name  string `json:"name"`
-		Email string `json:"email"`
+		Age int `json:"age"`
 	}, len(users))
 
 	for i, user := range users {
 		resp.Body.Users[i].ID = user.ID
 		resp.Body.Users[i].Name = user.Name
-		resp.Body.Users[i].Email = user.Email
+		resp.Body.Users[i].Age = user.Age
 	}
 
 	return resp, nil
@@ -118,7 +118,7 @@ func (h *UserHandler) GetUser(ctx context.Context, input *GetUserRequest) (*User
 	resp := &UserResponse{}
 	resp.Body.ID = user.ID
 	resp.Body.Name = user.Name
-	resp.Body.Email = user.Email
+	resp.Body.Age = user.Age
 
 	return resp, nil
 }
@@ -127,7 +127,7 @@ func (h *UserHandler) UpdateUser(ctx context.Context, input *UpdateUserRequest) 
 	user := &entities.User{
 		ID:    input.ID,
 		Name:  input.Body.Name,
-		Email: input.Body.Email,
+		Age: input.Body.Age,
 	}
 
 	err := h.service.UpdateUser(ctx, user)
@@ -138,7 +138,7 @@ func (h *UserHandler) UpdateUser(ctx context.Context, input *UpdateUserRequest) 
 	resp := &UserResponse{}
 	resp.Body.ID = user.ID
 	resp.Body.Name = user.Name
-	resp.Body.Email = user.Email
+	resp.Body.Age = user.Age
 
 	return resp, nil
 }

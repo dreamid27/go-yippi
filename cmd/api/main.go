@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"example.com/go-yippi/ent"
 	"example.com/go-yippi/internal/api/handlers"
 	"example.com/go-yippi/internal/application/services"
 	"example.com/go-yippi/internal/infrastructure/adapters/persistence"
@@ -13,8 +14,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v2"
 
-	"example.com/go-yippi/ent"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 )
 
 func main() {
