@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 
-	"example.com/go-yippi/ent"
 	"example.com/go-yippi/internal/api/handlers"
 	"example.com/go-yippi/internal/application/services"
 	"example.com/go-yippi/internal/infrastructure/adapters/persistence"
+	"example.com/go-yippi/internal/infrastructure/adapters/persistence/db/ent"
 	"example.com/go-yippi/internal/infrastructure/config"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
@@ -44,8 +44,13 @@ func main() {
 	userService := services.NewUserService(userRepo)
 	userHandler := handlers.NewUserHandler(userService)
 
+	productRepo := persistence.NewProductRepository(client)
+	productService := services.NewProductService(productRepo)
+	productHandler := handlers.NewProductHandler(productService)
+
 	// Register routes
 	userHandler.RegisterRoutes(humaAPI)
+	productHandler.RegisterRoutes(humaAPI)
 
 	// Start server
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)

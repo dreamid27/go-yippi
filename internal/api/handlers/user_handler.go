@@ -2,10 +2,13 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
+	"example.com/go-yippi/internal/api/dto"
 	"example.com/go-yippi/internal/application/services"
 	"example.com/go-yippi/internal/domain/entities"
+	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"github.com/danielgtaylor/huma/v2"
 )
 
@@ -28,6 +31,7 @@ func (h *UserHandler) RegisterRoutes(api huma.API) {
 		Summary:     "Create a new user",
 		Description: "Creates a new user with the provided name and age",
 		Tags:        []string{"Users"},
+		Errors:      []int{http.StatusBadRequest, http.StatusInternalServerError},
 	}, h.CreateUser)
 
 	huma.Register(api, huma.Operation{
@@ -37,6 +41,7 @@ func (h *UserHandler) RegisterRoutes(api huma.API) {
 		Summary:     "List all users",
 		Description: "Retrieves a list of all users in the system",
 		Tags:        []string{"Users"},
+		Errors:      []int{http.StatusInternalServerError},
 	}, h.GetUsers)
 
 	huma.Register(api, huma.Operation{
@@ -44,8 +49,9 @@ func (h *UserHandler) RegisterRoutes(api huma.API) {
 		Method:      http.MethodGet,
 		Path:        "/users/{id}",
 		Summary:     "Get a user by ID",
-		Description: "Retrieves a double user by their ID",
+		Description: "Retrieves a user by their ID",
 		Tags:        []string{"Users"},
+		Errors:      []int{http.StatusNotFound, http.StatusInternalServerError},
 	}, h.GetUser)
 
 	huma.Register(api, huma.Operation{
@@ -55,6 +61,7 @@ func (h *UserHandler) RegisterRoutes(api huma.API) {
 		Summary:     "Update a user",
 		Description: "Updates an existing user's information",
 		Tags:        []string{"Users"},
+		Errors:      []int{http.StatusNotFound, http.StatusInternalServerError},
 	}, h.UpdateUser)
 
 	huma.Register(api, huma.Operation{
@@ -65,10 +72,11 @@ func (h *UserHandler) RegisterRoutes(api huma.API) {
 		Description:   "Deletes a user from the system",
 		Tags:          []string{"Users"},
 		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{http.StatusNotFound, http.StatusInternalServerError},
 	}, h.DeleteUser)
 }
 
-func (h *UserHandler) CreateUser(ctx context.Context, input *CreateUserRequest) (*UserResponse, error) {
+func (h *UserHandler) CreateUser(ctx context.Context, input *dto.CreateUserRequest) (*dto.UserResponse, error) {
 	user := &entities.User{
 		Name:  input.Body.Name,
 		Age: input.Body.Age,
@@ -76,10 +84,10 @@ func (h *UserHandler) CreateUser(ctx context.Context, input *CreateUserRequest) 
 
 	err := h.service.CreateUser(ctx, user)
 	if err != nil {
-		return nil, err
+		return nil, huma.Error500InternalServerError("Failed to create user", err)
 	}
 
-	resp := &UserResponse{}
+	resp := &dto.UserResponse{}
 	resp.Body.ID = user.ID
 	resp.Body.Name = user.Name
 	resp.Body.Age = user.Age
@@ -87,13 +95,13 @@ func (h *UserHandler) CreateUser(ctx context.Context, input *CreateUserRequest) 
 	return resp, nil
 }
 
-func (h *UserHandler) GetUsers(ctx context.Context, input *struct{}) (*ListUsersResponse, error) {
+func (h *UserHandler) GetUsers(ctx context.Context, input *struct{}) (*dto.ListUsersResponse, error) {
 	users, err := h.service.ListUsers(ctx)
 	if err != nil {
-		return nil, err
+		return nil, huma.Error500InternalServerError("Failed to list users", err)
 	}
 
-	resp := &ListUsersResponse{}
+	resp := &dto.ListUsersResponse{}
 	resp.Body.Users = make([]struct {
 		ID    int    `json:"id"`
 		Name  string `json:"name"`
@@ -109,13 +117,16 @@ func (h *UserHandler) GetUsers(ctx context.Context, input *struct{}) (*ListUsers
 	return resp, nil
 }
 
-func (h *UserHandler) GetUser(ctx context.Context, input *GetUserRequest) (*UserResponse, error) {
+func (h *UserHandler) GetUser(ctx context.Context, input *dto.GetUserRequest) (*dto.UserResponse, error) {
 	user, err := h.service.GetUser(ctx, input.ID)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, domainErrors.ErrNotFound) {
+			return nil, huma.Error404NotFound("User not found")
+		}
+		return nil, huma.Error500InternalServerError("Failed to get user", err)
 	}
 
-	resp := &UserResponse{}
+	resp := &dto.UserResponse{}
 	resp.Body.ID = user.ID
 	resp.Body.Name = user.Name
 	resp.Body.Age = user.Age
@@ -123,7 +134,7 @@ func (h *UserHandler) GetUser(ctx context.Context, input *GetUserRequest) (*User
 	return resp, nil
 }
 
-func (h *UserHandler) UpdateUser(ctx context.Context, input *UpdateUserRequest) (*UserResponse, error) {
+func (h *UserHandler) UpdateUser(ctx context.Context, input *dto.UpdateUserRequest) (*dto.UserResponse, error) {
 	user := &entities.User{
 		ID:    input.ID,
 		Name:  input.Body.Name,
@@ -132,10 +143,13 @@ func (h *UserHandler) UpdateUser(ctx context.Context, input *UpdateUserRequest) 
 
 	err := h.service.UpdateUser(ctx, user)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, domainErrors.ErrNotFound) {
+			return nil, huma.Error404NotFound("User not found")
+		}
+		return nil, huma.Error500InternalServerError("Failed to update user", err)
 	}
 
-	resp := &UserResponse{}
+	resp := &dto.UserResponse{}
 	resp.Body.ID = user.ID
 	resp.Body.Name = user.Name
 	resp.Body.Age = user.Age
@@ -143,10 +157,13 @@ func (h *UserHandler) UpdateUser(ctx context.Context, input *UpdateUserRequest) 
 	return resp, nil
 }
 
-func (h *UserHandler) DeleteUser(ctx context.Context, input *DeleteUserRequest) (*struct{}, error) {
+func (h *UserHandler) DeleteUser(ctx context.Context, input *dto.DeleteUserRequest) (*struct{}, error) {
 	err := h.service.DeleteUser(ctx, input.ID)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, domainErrors.ErrNotFound) {
+			return nil, huma.Error404NotFound("User not found")
+		}
+		return nil, huma.Error500InternalServerError("Failed to delete user", err)
 	}
 
 	return &struct{}{}, nil

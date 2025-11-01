@@ -62,3 +62,7 @@ Once running, visit: http://localhost:8080/docs
 5. Create Ent schemas in `ent/schema/`
 6. Implement repository adapters in `internal/infrastructure/adapters/persistence/`
 7. Add HTTP handlers in `internal/api/handlers/`
+
+
+
+go run -mod=mod entgo.io/ent/cmd/ent new --target internal/scheme User

@@ -3,8 +3,9 @@ package persistence
 import (
 	"context"
 
-	"example.com/go-yippi/ent"
 	"example.com/go-yippi/internal/domain/entities"
+	domainErrors "example.com/go-yippi/internal/domain/errors"
+	"example.com/go-yippi/internal/infrastructure/adapters/persistence/db/ent"
 )
 
 // UserRepositoryImpl implements the UserRepository interface using Ent
@@ -33,6 +34,9 @@ func (r *UserRepositoryImpl) Create(ctx context.Context, user *entities.User) er
 func (r *UserRepositoryImpl) GetByID(ctx context.Context, id int) (*entities.User, error) {
 	found, err := r.client.User.Get(ctx, id)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, domainErrors.NewNotFoundError("User", id)
+		}
 		return nil, err
 	}
 
@@ -67,9 +71,22 @@ func (r *UserRepositoryImpl) Update(ctx context.Context, user *entities.User) er
 		SetName(user.Name).
 		SetAge(user.Age).
 		Save(ctx)
-	return err
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return domainErrors.NewNotFoundError("User", user.ID)
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *UserRepositoryImpl) Delete(ctx context.Context, id int) error {
-	return r.client.User.DeleteOneID(id).Exec(ctx)
+	err := r.client.User.DeleteOneID(id).Exec(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return domainErrors.NewNotFoundError("User", id)
+		}
+		return err
+	}
+	return nil
 }
