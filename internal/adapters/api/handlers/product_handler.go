@@ -34,16 +34,16 @@ func (h *ProductHandler) RegisterRoutes(api huma.API) {
 		Errors:      []int{http.StatusBadRequest, http.StatusConflict, http.StatusInternalServerError},
 	}, h.CreateProduct)
 
-	// List all products
+	// Query products with filters, sorting, and pagination
 	huma.Register(api, huma.Operation{
-		OperationID: "list-products",
+		OperationID: "query-products",
 		Method:      http.MethodGet,
 		Path:        "/products",
-		Summary:     "List all products",
-		Description: "Retrieves a list of all products in the system",
+		Summary:     "Query products with filtering, sorting, and pagination",
+		Description: "Flexible product search with cursor-based pagination, multiple filter operators, and multi-field sorting",
 		Tags:        []string{"Products"},
-		Errors:      []int{http.StatusInternalServerError},
-	}, h.ListProducts)
+		Errors:      []int{http.StatusBadRequest, http.StatusInternalServerError},
+	}, h.QueryProducts)
 
 	// Get product by ID
 	huma.Register(api, huma.Operation{
@@ -181,17 +181,56 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreatePro
 	return h.mapToResponse(product), nil
 }
 
-func (h *ProductHandler) ListProducts(ctx context.Context, input *struct{}) (*dto.ListProductsResponse, error) {
-	products, err := h.service.ListProducts(ctx)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("Failed to list products", err)
+func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProductsRequest) (*dto.QueryProductsResponse, error) {
+	// Convert DTO to domain entities
+	params := &entities.QueryParams{
+		Filters: make([]entities.Filter, len(input.Filters)),
+		Sort:    make([]entities.SortParam, len(input.Sort)),
 	}
 
-	resp := &dto.ListProductsResponse{}
-	resp.Body.Products = make([]dto.ProductListItem, len(products))
+	// Convert filters
+	for i, f := range input.Filters {
+		params.Filters[i] = entities.Filter{
+			Field:    f.Field,
+			Operator: entities.FilterOperator(f.Operator),
+			Value:    f.Value,
+		}
+	}
 
-	for i, product := range products {
-		resp.Body.Products[i] = dto.ProductListItem{
+	// Convert sort parameters
+	for i, s := range input.Sort {
+		params.Sort[i] = entities.SortParam{
+			Field: s.Field,
+			Order: entities.SortOrder(s.Order),
+		}
+	}
+
+	// Convert pagination parameters
+	params.Pagination = &entities.PaginationParams{
+		Limit:     input.Limit,
+		Direction: input.Direction,
+	}
+
+	// Only set cursor if provided
+	if input.Cursor != "" {
+		params.Pagination.Cursor = &input.Cursor
+	}
+
+	// Call service
+	result, err := h.service.QueryProducts(ctx, params)
+	if err != nil {
+		if errors.Is(err, domainErrors.ErrInvalidInput) {
+			return nil, huma.Error400BadRequest("Invalid query parameters", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to query products", err)
+	}
+
+	// Convert to DTO response
+	resp := &dto.QueryProductsResponse{}
+	resp.Body.Data = make([]dto.ProductListItem, len(result.Products))
+
+	for i, product := range result.Products {
+		resp.Body.Data[i] = dto.ProductListItem{
 			ID:          product.ID,
 			SKU:         product.SKU,
 			Slug:        product.Slug,
@@ -206,6 +245,15 @@ func (h *ProductHandler) ListProducts(ctx context.Context, input *struct{}) (*dt
 			CreatedAt:   product.CreatedAt,
 			UpdatedAt:   product.UpdatedAt,
 		}
+	}
+
+	// Convert page info
+	resp.Body.PageInfo = dto.PageInfoDTO{
+		HasNextPage:     result.PageInfo.HasNextPage,
+		HasPreviousPage: result.PageInfo.HasPreviousPage,
+		StartCursor:     result.PageInfo.StartCursor,
+		EndCursor:       result.PageInfo.EndCursor,
+		TotalCount:      result.PageInfo.TotalCount,
 	}
 
 	return resp, nil

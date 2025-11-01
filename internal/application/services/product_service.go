@@ -164,3 +164,151 @@ func (s *ProductService) ArchiveProduct(ctx context.Context, id int) error {
 	product.Status = entities.ProductStatusArchived
 	return s.repo.Update(ctx, product)
 }
+
+// QueryProducts performs a flexible query with validation
+func (s *ProductService) QueryProducts(ctx context.Context, params *entities.QueryParams) (*entities.QueryResult, error) {
+	// Validate and set defaults for pagination
+	if params.Pagination == nil {
+		params.Pagination = &entities.PaginationParams{
+			Limit:     20,
+			Direction: "forward",
+		}
+	} else {
+		if params.Pagination.Limit <= 0 {
+			params.Pagination.Limit = 20
+		}
+		if params.Pagination.Limit > 100 {
+			params.Pagination.Limit = 100
+		}
+		if params.Pagination.Direction == "" {
+			params.Pagination.Direction = "forward"
+		}
+		if params.Pagination.Direction != "forward" && params.Pagination.Direction != "backward" {
+			return nil, domainErrors.NewValidationError("direction", "Direction must be 'forward' or 'backward'")
+		}
+	}
+
+	// Validate filters (max 10 filters)
+	if len(params.Filters) > 10 {
+		return nil, domainErrors.NewValidationError("filters", "Maximum 10 filters allowed")
+	}
+
+	for _, filter := range params.Filters {
+		if err := s.validateFilter(filter); err != nil {
+			return nil, err
+		}
+	}
+
+	// Validate sort params (max 3 sorts)
+	if len(params.Sort) > 3 {
+		return nil, domainErrors.NewValidationError("sort", "Maximum 3 sort fields allowed")
+	}
+
+	for _, sort := range params.Sort {
+		if err := s.validateSort(sort); err != nil {
+			return nil, err
+		}
+	}
+
+	return s.repo.Query(ctx, params)
+}
+
+// validateFilter validates a single filter
+func (s *ProductService) validateFilter(filter entities.Filter) error {
+	// Validate field name
+	if !s.isValidFilterField(filter.Field) {
+		return domainErrors.NewValidationError("filter.field", "Invalid filter field: "+filter.Field)
+	}
+
+	// Validate operator for field type
+	if !s.isValidOperatorForField(filter.Field, filter.Operator) {
+		return domainErrors.NewValidationError("filter.operator", "Invalid operator "+string(filter.Operator)+" for field "+filter.Field)
+	}
+
+	return nil
+}
+
+// validateSort validates a single sort parameter
+func (s *ProductService) validateSort(sort entities.SortParam) error {
+	if !s.isValidSortField(sort.Field) {
+		return domainErrors.NewValidationError("sort.field", "Invalid sort field: "+sort.Field)
+	}
+
+	if sort.Order != entities.SortAsc && sort.Order != entities.SortDesc {
+		return domainErrors.NewValidationError("sort.order", "Sort order must be 'asc' or 'desc'")
+	}
+
+	return nil
+}
+
+// isValidFilterField checks if a field name is valid for filtering
+func (s *ProductService) isValidFilterField(field string) bool {
+	validFields := map[string]bool{
+		"id": true, "sku": true, "slug": true, "name": true,
+		"description": true, "price": true, "weight": true,
+		"length": true, "width": true, "height": true,
+		"status": true, "created_at": true, "updated_at": true,
+	}
+	return validFields[field]
+}
+
+// isValidSortField checks if a field name is valid for sorting
+func (s *ProductService) isValidSortField(field string) bool {
+	validFields := map[string]bool{
+		"id": true, "sku": true, "slug": true, "name": true,
+		"price": true, "weight": true, "length": true,
+		"width": true, "height": true, "status": true,
+		"created_at": true, "updated_at": true,
+	}
+	return validFields[field]
+}
+
+// isValidOperatorForField checks if an operator is valid for a given field
+func (s *ProductService) isValidOperatorForField(field string, op entities.FilterOperator) bool {
+	stringFields := map[string]bool{
+		"sku": true, "slug": true, "name": true, "description": true, "status": true,
+	}
+	numericFields := map[string]bool{
+		"id": true, "price": true, "weight": true, "length": true, "width": true, "height": true,
+	}
+	timeFields := map[string]bool{
+		"created_at": true, "updated_at": true,
+	}
+
+	// Universal operators
+	if op == entities.OpIsNull || op == entities.OpIsNotNull {
+		return true
+	}
+
+	// String field operators
+	if stringFields[field] {
+		switch op {
+		case entities.OpEqual, entities.OpNotEqual, entities.OpLike, entities.OpILike,
+			entities.OpIn, entities.OpNotIn, entities.OpStartsWith, entities.OpEndsWith, entities.OpContains:
+			return true
+		}
+		return false
+	}
+
+	// Numeric field operators
+	if numericFields[field] {
+		switch op {
+		case entities.OpEqual, entities.OpNotEqual, entities.OpGreaterThan,
+			entities.OpGreaterThanOrEqual, entities.OpLessThan, entities.OpLessThanOrEqual, entities.OpIn:
+			return true
+		}
+		return false
+	}
+
+	// Time field operators
+	if timeFields[field] {
+		switch op {
+		case entities.OpEqual, entities.OpNotEqual, entities.OpGreaterThan,
+			entities.OpGreaterThanOrEqual, entities.OpLessThan, entities.OpLessThanOrEqual:
+			return true
+		}
+		return false
+	}
+
+	return false
+}

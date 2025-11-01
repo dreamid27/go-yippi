@@ -69,14 +69,39 @@ type ProductListItem struct {
 	UpdatedAt   time.Time `json:"updated_at" doc:"Last update timestamp"`
 }
 
-// ListProductsResponse defines the response for listing products
+// QueryProductsRequest defines the request for querying products with filters, sorting, and pagination
+type QueryProductsRequest struct {
+	// Filters - array of filter conditions
+	// Usage: ?filter[0][field]=status&filter[0][operator]=eq&filter[0][value]=published
+	Filters []FilterDTO `query:"filter" doc:"Array of filter conditions"`
+
+	// Sort - array of sort parameters
+	// Usage: ?sort[0][field]=price&sort[0][order]=desc
+	Sort []SortDTO `query:"sort" doc:"Array of sort parameters"`
+
+	// Pagination parameters
+	Cursor       string `query:"cursor" doc:"Pagination cursor from previous response"`
+	Limit        int    `query:"limit" default:"20" doc:"Items per page (default: 20, max: 100)"`
+	Direction    string `query:"direction" default:"forward" doc:"Pagination direction: forward or backward (default: forward)"`
+	IncludeTotal bool   `query:"include_total" default:"false" doc:"Include total count in response (default: false, may be expensive)"`
+}
+
+// QueryProductsResponse defines the response for querying products with pagination
+type QueryProductsResponse struct {
+	Body struct {
+		Data     []ProductListItem `json:"data" doc:"List of products"`
+		PageInfo PageInfoDTO       `json:"page_info" doc:"Pagination information"`
+	}
+}
+
+// ListProductsResponse defines the response for listing products (legacy, kept for backward compatibility)
 type ListProductsResponse struct {
 	Body struct {
 		Products []ProductListItem `json:"products" doc:"List of products"`
 	}
 }
 
-// ListProductsByStatusRequest defines the request for listing products by status
+// ListProductsByStatusRequest defines the request for listing products by status (legacy)
 type ListProductsByStatusRequest struct {
 	Status string `path:"status" enum:"draft,published,archived" doc:"Product status"`
 }
