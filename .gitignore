@@ -17,6 +17,8 @@ tmp/
 # Dependency directories
 vendor/
 
+# Generated code
+internal/adapters/persistence/db/ent/
 
 # Environment variables
 .env
