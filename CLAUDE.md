@@ -13,14 +13,14 @@ This is a Go-based REST API implementing **Hexagonal Architecture** (Ports and A
 ## Build & Run Commands
 
 ### Generate Ent Code
-Always run after modifying schemas in `internal/infrastructure/adapters/persistence/db/schema/`:
+Always run after modifying schemas in `internal/adapters/persistence/db/schema/`:
 ```bash
 make generate
 ```
 
 Or directly:
 ```bash
-go run -mod=mod entgo.io/ent/cmd/ent generate --target ./internal/infrastructure/adapters/persistence/db/ent ./internal/infrastructure/adapters/persistence/db/schema
+go run -mod=mod entgo.io/ent/cmd/ent generate --target ./internal/adapters/persistence/db/ent ./internal/adapters/persistence/db/schema
 ```
 
 ### Run Application
@@ -36,8 +36,19 @@ make dev          # Uses Air for hot reloading
 
 ### Build
 ```bash
-go build ./...
-go build -o bin/api cmd/api/main.go
+make build        # Generates code and builds binary to bin/api
+go build ./...    # Build all packages
+```
+
+### Test
+```bash
+make test         # Run all tests
+go test ./...     # Run tests directly
+```
+
+### Clean
+```bash
+make clean        # Remove build artifacts
 ```
 
 ## Architecture & Layer Boundaries
@@ -61,21 +72,24 @@ Domain Layer (core) → Application Layer → Infrastructure/API (adapters)
    - Depends ONLY on domain layer (entities, ports)
    - Services implement business workflows
 
-3. **Infrastructure Layer** (`internal/infrastructure/`)
-   - **Persistence adapters** (`adapters/persistence/`): Implement domain ports using Ent
-   - **Ent schemas** (`adapters/persistence/db/schema/`): Database schema definitions
-   - **Generated Ent code** (`adapters/persistence/db/ent/`): Auto-generated ORM code
-   - **Config** (`config/`): Application configuration
+3. **Adapters Layer** (`internal/adapters/`)
+   - **API Adapter** (`api/`): HTTP/REST interface
+     - **Handlers** (`api/handlers/`): HTTP request handlers
+     - **DTOs** (`api/dto/`): Request/response data transfer objects
+   - **Persistence Adapter** (`persistence/`): Database interface
+     - **Repositories** (`persistence/*.go`): Implement domain ports using Ent
+     - **Ent schemas** (`persistence/db/schema/`): Database schema definitions
+     - **Generated Ent code** (`persistence/db/ent/`): Auto-generated ORM code
+   - Depends on application services, NOT on infrastructure directly
 
-4. **API Layer** (`internal/api/`)
-   - **Handlers** (`handlers/`): HTTP request handlers
-   - **DTOs** (`dto/`): Request/response data transfer objects
-   - Depends on application services, NOT on infrastructure
+4. **Infrastructure Layer** (`internal/infrastructure/`)
+   - **Config** (`config/`): Application configuration
+   - Cross-cutting concerns (logging, monitoring, etc.)
 
 ### Critical Architecture Rules
 
 **NEVER import infrastructure packages in handlers or services:**
-- ❌ `internal/api/handlers` importing `internal/infrastructure/adapters/persistence/db/ent`
+- ❌ `internal/adapters/api/handlers` importing `internal/adapters/persistence/db/ent`
 - ❌ `internal/application/services` importing Ent or database libraries
 - ✅ Use domain errors (`internal/domain/errors`) for error handling across layers
 
@@ -102,26 +116,26 @@ if errors.Is(err, domainErrors.ErrNotFound) {
 ### Adding a New Entity
 
 1. Create domain entity in `internal/domain/entities/`
-2. Create Ent schema in `internal/infrastructure/adapters/persistence/db/schema/`
+2. Create Ent schema in `internal/adapters/persistence/db/schema/`
 3. Define repository port in `internal/domain/ports/repository.go`
 4. Run `make generate` to generate Ent code
-5. Implement repository in `internal/infrastructure/adapters/persistence/`
+5. Implement repository in `internal/adapters/persistence/`
 6. Create service in `internal/application/services/`
-7. Create DTOs in `internal/api/dto/`
-8. Create handler in `internal/api/handlers/`
+7. Create DTOs in `internal/adapters/api/dto/`
+8. Create handler in `internal/adapters/api/handlers/`
 9. Register routes in the handler's `RegisterRoutes()` method
 10. Wire dependencies in `cmd/api/main.go`
 
 ### Ent Schema Location
 
-Ent schemas are stored in: `internal/infrastructure/adapters/persistence/db/schema/`
+Ent schemas are stored in: `internal/adapters/persistence/db/schema/`
 
-Generated code goes to: `internal/infrastructure/adapters/persistence/db/ent/`
+Generated code goes to: `internal/adapters/persistence/db/ent/`
 
 ### Creating New Ent Schema
 
 ```bash
-go run -mod=mod entgo.io/ent/cmd/ent new --target internal/infrastructure/adapters/persistence/db/schema EntityName
+go run -mod=mod entgo.io/ent/cmd/ent new --target internal/adapters/persistence/db/schema EntityName
 ```
 
 ## Configuration
@@ -184,6 +198,53 @@ type UserResponse struct {
     }
 }
 ```
+
+### IMPORTANT: DTO Best Practices
+
+**NEVER use inline anonymous structs in DTOs:**
+
+❌ **BAD - Inline anonymous struct:**
+```go
+type ListUsersResponse struct {
+    Body struct {
+        Users []struct {  // Anonymous inline struct
+            ID   int    `json:"id"`
+            Name string `json:"name"`
+        } `json:"users"`
+    }
+}
+```
+
+This causes:
+- OpenAPI schema generation issues
+- Type conflicts in Huma's schema registry
+- Incorrect field definitions in generated documentation
+
+✅ **GOOD - Named struct type:**
+```go
+// Create a named type for list items
+type UserListItem struct {
+    ID   int    `json:"id" doc:"User ID"`
+    Name string `json:"name" doc:"User name"`
+}
+
+type ListUsersResponse struct {
+    Body struct {
+        Users []UserListItem `json:"users" doc:"List of users"`
+    }
+}
+```
+
+**Benefits:**
+- Proper OpenAPI schema generation
+- Reusable type definitions
+- Better documentation through struct tags
+- Type safety and clarity
+
+**When creating list/collection responses:**
+1. Always create a separate named type for list items (e.g., `UserListItem`, `ProductListItem`)
+2. Add `doc` tags to all fields for OpenAPI documentation
+3. Use the named type in the response struct
 
 ## Database Migrations
 

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"example.com/go-yippi/internal/api/dto"
+	"example.com/go-yippi/internal/adapters/api/dto"
 	"example.com/go-yippi/internal/application/services"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"

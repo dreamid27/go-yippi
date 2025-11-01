@@ -3,9 +3,9 @@ package persistence
 import (
 	"context"
 
+	"example.com/go-yippi/internal/adapters/persistence/db/ent"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
-	"example.com/go-yippi/internal/infrastructure/adapters/persistence/db/ent"
 )
 
 // UserRepositoryImpl implements the UserRepository interface using Ent

@@ -6,15 +6,15 @@ import "time"
 type CreateProductRequest struct {
 	Body struct {
 		SKU         string  `json:"sku" minLength:"1" doc:"Stock Keeping Unit (must be unique)"`
-		Slug        string  `json:"slug" minLength:"1" doc:"URL-friendly identifier (must be unique)"`
+		Slug        *string `json:"slug,omitempty" minLength:"1" doc:"URL-friendly identifier (optional, auto-generated from name if not provided)"`
 		Name        string  `json:"name" minLength:"1" doc:"Product name"`
 		Price       float64 `json:"price" minimum:"0.01" doc:"Product price"`
 		Description string  `json:"description" doc:"Product description"`
-		Weight      int     `json:"weight" minimum:"0" doc:"Weight in grams for courier calculation"`
-		Length      int     `json:"length" minimum:"0" doc:"Length in cm"`
-		Width       int     `json:"width" minimum:"0" doc:"Width in cm"`
-		Height      int     `json:"height" minimum:"0" doc:"Height in cm"`
-		Status      string  `json:"status" enum:"draft,published,archived" default:"draft" doc:"Product status"`
+		Weight      *int    `json:"weight,omitempty" minimum:"0" doc:"Weight in grams for courier calculation (optional)"`
+		Length      *int    `json:"length,omitempty" minimum:"0" doc:"Length in cm (optional)"`
+		Width       *int    `json:"width,omitempty" minimum:"0" doc:"Width in cm (optional)"`
+		Height      *int    `json:"height,omitempty" minimum:"0" doc:"Height in cm (optional)"`
+		Status      *string `json:"status,omitempty" enum:"draft,published,archived" doc:"Product status (optional, defaults to draft)"`
 	}
 }
 
@@ -52,24 +52,27 @@ type GetProductBySlugRequest struct {
 	Slug string `path:"slug" doc:"Product slug"`
 }
 
+// ProductListItem represents a product in a list response
+type ProductListItem struct {
+	ID          int       `json:"id" doc:"Product ID"`
+	SKU         string    `json:"sku" doc:"Stock Keeping Unit"`
+	Slug        string    `json:"slug" doc:"URL-friendly identifier"`
+	Name        string    `json:"name" doc:"Product name"`
+	Price       float64   `json:"price" doc:"Product price"`
+	Description string    `json:"description" doc:"Product description"`
+	Weight      int       `json:"weight" doc:"Weight in grams"`
+	Length      int       `json:"length" doc:"Length in cm"`
+	Width       int       `json:"width" doc:"Width in cm"`
+	Height      int       `json:"height" doc:"Height in cm"`
+	Status      string    `json:"status" doc:"Product status"`
+	CreatedAt   time.Time `json:"created_at" doc:"Creation timestamp"`
+	UpdatedAt   time.Time `json:"updated_at" doc:"Last update timestamp"`
+}
+
 // ListProductsResponse defines the response for listing products
 type ListProductsResponse struct {
 	Body struct {
-		Products []struct {
-			ID          int       `json:"id"`
-			SKU         string    `json:"sku"`
-			Slug        string    `json:"slug"`
-			Name        string    `json:"name"`
-			Price       float64   `json:"price"`
-			Description string    `json:"description"`
-			Weight      int       `json:"weight"`
-			Length      int       `json:"length"`
-			Width       int       `json:"width"`
-			Height      int       `json:"height"`
-			Status      string    `json:"status"`
-			CreatedAt   time.Time `json:"created_at"`
-			UpdatedAt   time.Time `json:"updated_at"`
-		} `json:"products"`
+		Products []ProductListItem `json:"products" doc:"List of products"`
 	}
 }
 
@@ -83,15 +86,15 @@ type UpdateProductRequest struct {
 	ID   int `path:"id" doc:"Product ID"`
 	Body struct {
 		SKU         string  `json:"sku" minLength:"1" doc:"Stock Keeping Unit (must be unique)"`
-		Slug        string  `json:"slug" minLength:"1" doc:"URL-friendly identifier (must be unique)"`
+		Slug        *string `json:"slug,omitempty" minLength:"1" doc:"URL-friendly identifier (optional, auto-generated from name if not provided)"`
 		Name        string  `json:"name" minLength:"1" doc:"Product name"`
 		Price       float64 `json:"price" minimum:"0.01" doc:"Product price"`
 		Description string  `json:"description" doc:"Product description"`
-		Weight      int     `json:"weight" minimum:"0" doc:"Weight in grams for courier calculation"`
-		Length      int     `json:"length" minimum:"0" doc:"Length in cm"`
-		Width       int     `json:"width" minimum:"0" doc:"Width in cm"`
-		Height      int     `json:"height" minimum:"0" doc:"Height in cm"`
-		Status      string  `json:"status" enum:"draft,published,archived" doc:"Product status"`
+		Weight      *int    `json:"weight,omitempty" minimum:"0" doc:"Weight in grams for courier calculation (optional)"`
+		Length      *int    `json:"length,omitempty" minimum:"0" doc:"Length in cm (optional)"`
+		Width       *int    `json:"width,omitempty" minimum:"0" doc:"Width in cm (optional)"`
+		Height      *int    `json:"height,omitempty" minimum:"0" doc:"Height in cm (optional)"`
+		Status      *string `json:"status,omitempty" enum:"draft,published,archived" doc:"Product status (optional, defaults to draft)"`
 	}
 }
 

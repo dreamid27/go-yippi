@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
-	"example.com/go-yippi/internal/api/dto"
+	"example.com/go-yippi/internal/adapters/api/dto"
 	"example.com/go-yippi/internal/application/services"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
@@ -139,15 +138,33 @@ func (h *ProductHandler) RegisterRoutes(api huma.API) {
 func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreateProductRequest) (*dto.ProductResponse, error) {
 	product := &entities.Product{
 		SKU:         input.Body.SKU,
-		Slug:        input.Body.Slug,
 		Name:        input.Body.Name,
 		Price:       input.Body.Price,
 		Description: input.Body.Description,
-		Weight:      input.Body.Weight,
-		Length:      input.Body.Length,
-		Width:       input.Body.Width,
-		Height:      input.Body.Height,
-		Status:      entities.ProductStatus(input.Body.Status),
+	}
+
+	// Handle optional slug (will be auto-generated in service if not provided)
+	if input.Body.Slug != nil {
+		product.Slug = *input.Body.Slug
+	}
+
+	// Handle optional dimensions
+	if input.Body.Weight != nil {
+		product.Weight = *input.Body.Weight
+	}
+	if input.Body.Length != nil {
+		product.Length = *input.Body.Length
+	}
+	if input.Body.Width != nil {
+		product.Width = *input.Body.Width
+	}
+	if input.Body.Height != nil {
+		product.Height = *input.Body.Height
+	}
+
+	// Handle optional status (will default to draft in service if not provided)
+	if input.Body.Status != nil {
+		product.Status = entities.ProductStatus(*input.Body.Status)
 	}
 
 	err := h.service.CreateProduct(ctx, product)
@@ -171,36 +188,24 @@ func (h *ProductHandler) ListProducts(ctx context.Context, input *struct{}) (*dt
 	}
 
 	resp := &dto.ListProductsResponse{}
-	resp.Body.Products = make([]struct {
-		ID          int       `json:"id"`
-		SKU         string    `json:"sku"`
-		Slug        string    `json:"slug"`
-		Name        string    `json:"name"`
-		Price       float64   `json:"price"`
-		Description string    `json:"description"`
-		Weight      int       `json:"weight"`
-		Length      int       `json:"length"`
-		Width       int       `json:"width"`
-		Height      int       `json:"height"`
-		Status      string    `json:"status"`
-		CreatedAt   time.Time `json:"created_at"`
-		UpdatedAt   time.Time `json:"updated_at"`
-	}, len(products))
+	resp.Body.Products = make([]dto.ProductListItem, len(products))
 
 	for i, product := range products {
-		resp.Body.Products[i].ID = product.ID
-		resp.Body.Products[i].SKU = product.SKU
-		resp.Body.Products[i].Slug = product.Slug
-		resp.Body.Products[i].Name = product.Name
-		resp.Body.Products[i].Price = product.Price
-		resp.Body.Products[i].Description = product.Description
-		resp.Body.Products[i].Weight = product.Weight
-		resp.Body.Products[i].Length = product.Length
-		resp.Body.Products[i].Width = product.Width
-		resp.Body.Products[i].Height = product.Height
-		resp.Body.Products[i].Status = string(product.Status)
-		resp.Body.Products[i].CreatedAt = product.CreatedAt
-		resp.Body.Products[i].UpdatedAt = product.UpdatedAt
+		resp.Body.Products[i] = dto.ProductListItem{
+			ID:          product.ID,
+			SKU:         product.SKU,
+			Slug:        product.Slug,
+			Name:        product.Name,
+			Price:       product.Price,
+			Description: product.Description,
+			Weight:      product.Weight,
+			Length:      product.Length,
+			Width:       product.Width,
+			Height:      product.Height,
+			Status:      string(product.Status),
+			CreatedAt:   product.CreatedAt,
+			UpdatedAt:   product.UpdatedAt,
+		}
 	}
 
 	return resp, nil
@@ -255,36 +260,24 @@ func (h *ProductHandler) ListProductsByStatus(ctx context.Context, input *dto.Li
 	}
 
 	resp := &dto.ListProductsResponse{}
-	resp.Body.Products = make([]struct {
-		ID          int       `json:"id"`
-		SKU         string    `json:"sku"`
-		Slug        string    `json:"slug"`
-		Name        string    `json:"name"`
-		Price       float64   `json:"price"`
-		Description string    `json:"description"`
-		Weight      int       `json:"weight"`
-		Length      int       `json:"length"`
-		Width       int       `json:"width"`
-		Height      int       `json:"height"`
-		Status      string    `json:"status"`
-		CreatedAt   time.Time `json:"created_at"`
-		UpdatedAt   time.Time `json:"updated_at"`
-	}, len(products))
+	resp.Body.Products = make([]dto.ProductListItem, len(products))
 
 	for i, product := range products {
-		resp.Body.Products[i].ID = product.ID
-		resp.Body.Products[i].SKU = product.SKU
-		resp.Body.Products[i].Slug = product.Slug
-		resp.Body.Products[i].Name = product.Name
-		resp.Body.Products[i].Price = product.Price
-		resp.Body.Products[i].Description = product.Description
-		resp.Body.Products[i].Weight = product.Weight
-		resp.Body.Products[i].Length = product.Length
-		resp.Body.Products[i].Width = product.Width
-		resp.Body.Products[i].Height = product.Height
-		resp.Body.Products[i].Status = string(product.Status)
-		resp.Body.Products[i].CreatedAt = product.CreatedAt
-		resp.Body.Products[i].UpdatedAt = product.UpdatedAt
+		resp.Body.Products[i] = dto.ProductListItem{
+			ID:          product.ID,
+			SKU:         product.SKU,
+			Slug:        product.Slug,
+			Name:        product.Name,
+			Price:       product.Price,
+			Description: product.Description,
+			Weight:      product.Weight,
+			Length:      product.Length,
+			Width:       product.Width,
+			Height:      product.Height,
+			Status:      string(product.Status),
+			CreatedAt:   product.CreatedAt,
+			UpdatedAt:   product.UpdatedAt,
+		}
 	}
 
 	return resp, nil
@@ -294,15 +287,33 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, input *dto.UpdatePro
 	product := &entities.Product{
 		ID:          input.ID,
 		SKU:         input.Body.SKU,
-		Slug:        input.Body.Slug,
 		Name:        input.Body.Name,
 		Price:       input.Body.Price,
 		Description: input.Body.Description,
-		Weight:      input.Body.Weight,
-		Length:      input.Body.Length,
-		Width:       input.Body.Width,
-		Height:      input.Body.Height,
-		Status:      entities.ProductStatus(input.Body.Status),
+	}
+
+	// Handle optional slug (will be auto-generated in service if not provided)
+	if input.Body.Slug != nil {
+		product.Slug = *input.Body.Slug
+	}
+
+	// Handle optional dimensions
+	if input.Body.Weight != nil {
+		product.Weight = *input.Body.Weight
+	}
+	if input.Body.Length != nil {
+		product.Length = *input.Body.Length
+	}
+	if input.Body.Width != nil {
+		product.Width = *input.Body.Width
+	}
+	if input.Body.Height != nil {
+		product.Height = *input.Body.Height
+	}
+
+	// Handle optional status (will default to draft in service if not provided)
+	if input.Body.Status != nil {
+		product.Status = entities.ProductStatus(*input.Body.Status)
 	}
 
 	err := h.service.UpdateProduct(ctx, product)

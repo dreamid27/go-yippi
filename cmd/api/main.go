@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 
-	"example.com/go-yippi/internal/api/handlers"
+	"example.com/go-yippi/internal/adapters/api/handlers"
+	"example.com/go-yippi/internal/adapters/persistence"
+	"example.com/go-yippi/internal/adapters/persistence/db/ent"
 	"example.com/go-yippi/internal/application/services"
-	"example.com/go-yippi/internal/infrastructure/adapters/persistence"
-	"example.com/go-yippi/internal/infrastructure/adapters/persistence/db/ent"
 	"example.com/go-yippi/internal/infrastructure/config"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"

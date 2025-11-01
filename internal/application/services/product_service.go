@@ -23,9 +23,6 @@ func (s *ProductService) CreateProduct(ctx context.Context, product *entities.Pr
 	if strings.TrimSpace(product.SKU) == "" {
 		return domainErrors.NewValidationError("sku", "SKU is required")
 	}
-	if strings.TrimSpace(product.Slug) == "" {
-		return domainErrors.NewValidationError("slug", "Slug is required")
-	}
 	if strings.TrimSpace(product.Name) == "" {
 		return domainErrors.NewValidationError("name", "Name is required")
 	}
@@ -33,14 +30,33 @@ func (s *ProductService) CreateProduct(ctx context.Context, product *entities.Pr
 		return domainErrors.NewValidationError("price", "Price must be greater than 0")
 	}
 
+	// Auto-generate slug from name if not provided
+	if strings.TrimSpace(product.Slug) == "" {
+		product.Slug = entities.GenerateSlug(product.Name)
+	}
+
+	// Set default status to draft if not provided or empty
+	if product.Status == "" {
+		product.Status = entities.ProductStatusDraft
+	}
+
 	// Validate status
 	if !product.IsValid() {
 		return domainErrors.NewValidationError("status", "Invalid product status")
 	}
 
-	// Validate dimensions for courier calculation
+	// Validate dimensions for courier calculation (if provided)
 	if product.Weight < 0 {
 		return domainErrors.NewValidationError("weight", "Weight cannot be negative")
+	}
+	if product.Length < 0 {
+		return domainErrors.NewValidationError("length", "Length cannot be negative")
+	}
+	if product.Width < 0 {
+		return domainErrors.NewValidationError("width", "Width cannot be negative")
+	}
+	if product.Height < 0 {
+		return domainErrors.NewValidationError("height", "Height cannot be negative")
 	}
 
 	return s.repo.Create(ctx, product)
@@ -81,9 +97,6 @@ func (s *ProductService) UpdateProduct(ctx context.Context, product *entities.Pr
 	if strings.TrimSpace(product.SKU) == "" {
 		return domainErrors.NewValidationError("sku", "SKU is required")
 	}
-	if strings.TrimSpace(product.Slug) == "" {
-		return domainErrors.NewValidationError("slug", "Slug is required")
-	}
 	if strings.TrimSpace(product.Name) == "" {
 		return domainErrors.NewValidationError("name", "Name is required")
 	}
@@ -91,9 +104,33 @@ func (s *ProductService) UpdateProduct(ctx context.Context, product *entities.Pr
 		return domainErrors.NewValidationError("price", "Price must be greater than 0")
 	}
 
+	// Auto-generate slug from name if not provided
+	if strings.TrimSpace(product.Slug) == "" {
+		product.Slug = entities.GenerateSlug(product.Name)
+	}
+
+	// Set default status to draft if not provided or empty
+	if product.Status == "" {
+		product.Status = entities.ProductStatusDraft
+	}
+
 	// Validate status
 	if !product.IsValid() {
 		return domainErrors.NewValidationError("status", "Invalid product status")
+	}
+
+	// Validate dimensions for courier calculation (if provided)
+	if product.Weight < 0 {
+		return domainErrors.NewValidationError("weight", "Weight cannot be negative")
+	}
+	if product.Length < 0 {
+		return domainErrors.NewValidationError("length", "Length cannot be negative")
+	}
+	if product.Width < 0 {
+		return domainErrors.NewValidationError("width", "Width cannot be negative")
+	}
+	if product.Height < 0 {
+		return domainErrors.NewValidationError("height", "Height cannot be negative")
 	}
 
 	return s.repo.Update(ctx, product)

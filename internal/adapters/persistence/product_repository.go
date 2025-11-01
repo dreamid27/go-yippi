@@ -3,10 +3,10 @@ package persistence
 import (
 	"context"
 
+	"example.com/go-yippi/internal/adapters/persistence/db/ent"
+	"example.com/go-yippi/internal/adapters/persistence/db/ent/product"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
-	"example.com/go-yippi/internal/infrastructure/adapters/persistence/db/ent"
-	"example.com/go-yippi/internal/infrastructure/adapters/persistence/db/ent/product"
 )
 
 // ProductRepositoryImpl implements the ProductRepository interface using Ent
@@ -60,7 +60,7 @@ func (r *ProductRepositoryImpl) GetByID(ctx context.Context, id int) (*entities.
 func (r *ProductRepositoryImpl) GetBySKU(ctx context.Context, sku string) (*entities.Product, error) {
 	found, err := r.client.Product.
 		Query().
-		Where(product.Sku(sku)).
+		Where(product.SkuEQ(sku)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
