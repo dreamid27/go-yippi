@@ -10,8 +10,8 @@ type Cursor struct {
 type PageInfo struct {
 	HasNextPage     bool    `json:"has_next_page"`
 	HasPreviousPage bool    `json:"has_previous_page"`
-	StartCursor     *string `json:"start_cursor,omitempty"`
-	EndCursor       *string `json:"end_cursor,omitempty"`
+	PreviousCursor     string  `json:"previous_cursor"` // Empty string if no previous page
+	NextCursor       string  `json:"next_cursor"`   // Empty string if no next page
 	TotalCount      *int    `json:"total_count,omitempty"`
 }
 

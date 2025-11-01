@@ -50,8 +50,8 @@ type PaginatedResponse struct {
 type PageInfo struct {
     HasNextPage     bool    `json:"has_next_page"`
     HasPreviousPage bool    `json:"has_previous_page"`
-    StartCursor     *string `json:"start_cursor"` // Cursor of first item
-    EndCursor       *string `json:"end_cursor"`   // Cursor of last item
+    PreviousCursor     *string `json:"previous_cursor"` // Cursor of first item
+    NextCursor       *string `json:"next_cursor"`   // Cursor of last item
     TotalCount      *int    `json:"total_count"`  // Optional, expensive to compute
 }
 ```
@@ -292,8 +292,8 @@ type Cursor struct {
 type PageInfo struct {
     HasNextPage     bool
     HasPreviousPage bool
-    StartCursor     *string
-    EndCursor       *string
+    PreviousCursor     *string
+    NextCursor       *string
     TotalCount      *int
 }
 
@@ -525,8 +525,8 @@ type PaginationDTO struct {
 type PageInfoDTO struct {
     HasNextPage     bool    `json:"has_next_page" doc:"Indicates if there are more items"`
     HasPreviousPage bool    `json:"has_previous_page" doc:"Indicates if there are previous items"`
-    StartCursor     *string `json:"start_cursor,omitempty" doc:"Cursor of the first item"`
-    EndCursor       *string `json:"end_cursor,omitempty" doc:"Cursor of the last item"`
+    PreviousCursor     *string `json:"previous_cursor,omitempty" doc:"Cursor of the first item"`
+    NextCursor       *string `json:"next_cursor,omitempty" doc:"Cursor of the last item"`
     TotalCount      *int    `json:"total_count,omitempty" doc:"Total count (optional, expensive to compute)"`
 }
 ```
@@ -785,8 +785,8 @@ GET /products/query?limit=20
   "page_info": {
     "has_next_page": true,
     "has_previous_page": false,
-    "start_cursor": "eyJpZCI6MSwi...",
-    "end_cursor": "eyJpZCI6MjAsI..."
+    "previous_cursor": "eyJpZCI6MSwi...",
+    "next_cursor": "eyJpZCI6MjAsI..."
   }
 }
 ```

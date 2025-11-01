@@ -1,4 +1,4 @@
-.PHONY: run generate dev air build clean test
+.PHONY: run generate dev air build clean test seed
 
 # Run the application with automatic generation
 run: generate
@@ -27,3 +27,7 @@ clean:
 # Run tests
 test:
 	go test -v ./...
+
+# Seed database with mock data
+seed: generate
+	go run cmd/seed/main.go

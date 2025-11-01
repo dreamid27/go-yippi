@@ -71,13 +71,15 @@ type ProductListItem struct {
 
 // QueryProductsRequest defines the request for querying products with filters, sorting, and pagination
 type QueryProductsRequest struct {
-	// Filters - array of filter conditions
+	// Filters - array of filter conditions (parsed by custom Resolver)
 	// Usage: ?filter[0][field]=status&filter[0][operator]=eq&filter[0][value]=published
-	Filters []FilterDTO `query:"filter" doc:"Array of filter conditions"`
+	// Note: This is populated by the Resolve() method and hidden from OpenAPI schema
+	Filters []FilterDTO
 
-	// Sort - array of sort parameters
+	// Sort - array of sort parameters (parsed by custom Resolver)
 	// Usage: ?sort[0][field]=price&sort[0][order]=desc
-	Sort []SortDTO `query:"sort" doc:"Array of sort parameters"`
+	// Note: This is populated by the Resolve() method and hidden from OpenAPI schema
+	Sort []SortDTO
 
 	// Pagination parameters
 	Cursor       string `query:"cursor" doc:"Pagination cursor from previous response"`

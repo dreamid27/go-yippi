@@ -251,8 +251,8 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 	resp.Body.PageInfo = dto.PageInfoDTO{
 		HasNextPage:     result.PageInfo.HasNextPage,
 		HasPreviousPage: result.PageInfo.HasPreviousPage,
-		StartCursor:     result.PageInfo.StartCursor,
-		EndCursor:       result.PageInfo.EndCursor,
+		PreviousCursor:     result.PageInfo.PreviousCursor,
+		NextCursor:       result.PageInfo.NextCursor,
 		TotalCount:      result.PageInfo.TotalCount,
 	}
 

@@ -23,6 +23,7 @@ func (r *ProductRepositoryImpl) Query(ctx context.Context, params *entities.Quer
 		if err != nil {
 			return nil, fmt.Errorf("failed to build filter predicates: %w", err)
 		}
+
 		query = query.Where(predicates...)
 	}
 
@@ -49,8 +50,13 @@ func (r *ProductRepositoryImpl) Query(ctx context.Context, params *entities.Quer
 	// Fetch limit + 1 to determine if there's a next page
 	query = query.Limit(limit + 1)
 
+
+	fmt.Println("cursor")
+	fmt.Println(cursor)
+
 	// Apply cursor pagination
 	if cursor != nil {
+		fmt.Println("masuk donks")
 		query = r.applyCursor(query, cursor, params.Pagination.Direction, params.Sort)
 	}
 
@@ -221,7 +227,7 @@ func (r *ProductRepositoryImpl) buildStringFilter(filter entities.Filter, fieldF
 		}, nil
 	case entities.OpILike:
 		return func(s *sql.Selector) {
-			s.Where(sql.EQ(sql.Lower(filter.Field), strings.ToLower(val)))
+			s.Where(sql.Like(sql.Lower(filter.Field), strings.ToLower(val)))
 		}, nil
 	case entities.OpStartsWith:
 		return func(s *sql.Selector) {
@@ -435,22 +441,43 @@ func (r *ProductRepositoryImpl) getSortOrderFunc(field string, order entities.So
 
 // applyCursor applies cursor-based pagination
 func (r *ProductRepositoryImpl) applyCursor(query *ent.ProductQuery, cursor *entities.Cursor, direction string, sortParams []entities.SortParam) *ent.ProductQuery {
+	// Parse cursor timestamp - try RFC3339Nano first, then RFC3339 for backward compatibility
+	cursorTime, err := time.Parse(time.RFC3339Nano, cursor.CreatedAt)
+	if err != nil {
+		cursorTime, err = time.Parse(time.RFC3339, cursor.CreatedAt)
+		if err != nil {
+			// If parsing fails, fall back to ID-only comparison
+			if direction == "backward" {
+				return query.Where(product.IDLT(cursor.ID))
+			}
+			return query.Where(product.IDGT(cursor.ID))
+		}
+	}
+
 	if direction == "backward" {
-		// For backward pagination, we reverse the comparison
+		// For backward pagination (prev page), get items BEFORE cursor
+		// With ORDER BY created_at DESC, id DESC:
+		// WHERE (created_at > cursor.created_at) OR (created_at = cursor.created_at AND id > cursor.id)
 		return query.Where(
 			product.Or(
+				product.CreatedAtGT(cursorTime),
 				product.And(
-					product.IDLT(cursor.ID),
+					product.CreatedAtEQ(cursorTime),
+					product.IDGT(cursor.ID),
 				),
 			),
 		)
 	}
 
-	// Forward pagination (default)
+	// Forward pagination (next page), get items AFTER cursor
+	// With ORDER BY created_at DESC, id DESC:
+	// WHERE (created_at < cursor.created_at) OR (created_at = cursor.created_at AND id < cursor.id)
 	return query.Where(
 		product.Or(
+			product.CreatedAtLT(cursorTime),
 			product.And(
-				product.IDGT(cursor.ID),
+				product.CreatedAtEQ(cursorTime),
+				product.IDLT(cursor.ID),
 			),
 		),
 	)
@@ -458,27 +485,38 @@ func (r *ProductRepositoryImpl) applyCursor(query *ent.ProductQuery, cursor *ent
 
 // buildPageInfo builds pagination metadata
 func (r *ProductRepositoryImpl) buildPageInfo(products []*ent.Product, hasNextPage bool, pagination *entities.PaginationParams) entities.PageInfo {
+	// Determine if there's a previous page
+	// If we received a cursor in forward direction, there's a previous page
+	// If we received a cursor in backward direction, there's a next page
+	hasPreviousPage := pagination != nil && pagination.Cursor != nil && pagination.Direction != "backward"
+
 	pageInfo := entities.PageInfo{
 		HasNextPage:     hasNextPage,
-		HasPreviousPage: false, // We'll implement this properly later
+		HasPreviousPage: hasPreviousPage,
+		PreviousCursor:     "",  // Will be set below if applicable
+		NextCursor:       "",  // Will be set below if applicable
 	}
 
 	if len(products) > 0 {
-		// Build start cursor
-		startCursor := entities.Cursor{
-			ID:        products[0].ID,
-			CreatedAt: products[0].CreatedAt.Format(time.RFC3339),
+		// Set start_cursor if there's a previous page
+		if hasPreviousPage {
+			startCursor := entities.Cursor{
+				ID:        products[0].ID,
+				CreatedAt: products[0].CreatedAt.Format(time.RFC3339Nano),
+			}
+			startCursorStr, _ := EncodeCursor(startCursor)
+			pageInfo.PreviousCursor = startCursorStr
 		}
-		startCursorStr, _ := EncodeCursor(startCursor)
-		pageInfo.StartCursor = &startCursorStr
 
-		// Build end cursor
-		endCursor := entities.Cursor{
-			ID:        products[len(products)-1].ID,
-			CreatedAt: products[len(products)-1].CreatedAt.Format(time.RFC3339),
+		// Set end_cursor if there's a next page
+		if hasNextPage {
+			endCursor := entities.Cursor{
+				ID:        products[len(products)-1].ID,
+				CreatedAt: products[len(products)-1].CreatedAt.Format(time.RFC3339Nano),
+			}
+			endCursorStr, _ := EncodeCursor(endCursor)
+			pageInfo.NextCursor = endCursorStr
 		}
-		endCursorStr, _ := EncodeCursor(endCursor)
-		pageInfo.EndCursor = &endCursorStr
 	}
 
 	return pageInfo
