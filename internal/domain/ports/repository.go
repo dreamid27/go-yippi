@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"example.com/go-yippi/internal/domain/entities"
+	"github.com/google/uuid"
 )
 
 // UserRepository defines the interface for user data operations
@@ -30,4 +31,15 @@ type ProductRepository interface {
 	// Legacy methods (can be deprecated in favor of Query)
 	List(ctx context.Context) ([]*entities.Product, error)
 	ListByStatus(ctx context.Context, status entities.ProductStatus) ([]*entities.Product, error)
+}
+
+// StorageFileRepository defines the interface for storage file operations
+type StorageFileRepository interface {
+	Create(ctx context.Context, file *entities.StorageFile) error
+	GetByID(ctx context.Context, id uuid.UUID) (*entities.StorageFile, error)
+	GetByFilename(ctx context.Context, folder, filename string) (*entities.StorageFile, error)
+	ListByFolder(ctx context.Context, folder string) ([]*entities.StorageFile, error)
+	List(ctx context.Context, limit, offset int) ([]*entities.StorageFile, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	UpdateMetadata(ctx context.Context, id uuid.UUID, metadata map[string]interface{}) error
 }

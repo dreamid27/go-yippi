@@ -10,6 +10,17 @@ This is a Go-based REST API implementing **Hexagonal Architecture** (Ports and A
 - **Ent** as the ORM for database operations
 - **PostgreSQL** as the primary database
 
+## Documentation
+
+Comprehensive documentation is available in the `docs/` folder:
+- **[Architecture](docs/architecture/)**: System architecture, hexagonal pattern, and dependency flow
+- **[Guides](docs/guides/)**: Getting started, adding features, and file uploads
+- **[API Documentation](docs/api/)**: Endpoint documentation for products and storage files
+- **[Infrastructure](docs/infrastructure/)**: Database and MinIO setup
+- **Development**: Testing and contribution guidelines
+
+For a complete overview, see [docs/README.md](docs/README.md).
+
 ## Build & Run Commands
 
 ### Generate Ent Code
@@ -54,6 +65,11 @@ make clean        # Remove build artifacts
 ## Architecture & Layer Boundaries
 
 This project strictly follows hexagonal architecture. **Critical**: dependencies flow inward only.
+
+For comprehensive architecture documentation, see:
+- [Architecture Overview](docs/architecture/overview.md)
+- [Hexagonal Pattern Details](docs/architecture/hexagonal-pattern.md)
+- [Dependency Flow Rules](docs/architecture/dependency-flow.md)
 
 ### Layer Structure
 
@@ -113,7 +129,9 @@ if errors.Is(err, domainErrors.ErrNotFound) {
 
 ## Adding New Features
 
-### Adding a New Entity
+For a detailed step-by-step guide on adding new entities and features, see [docs/guides/adding-features.md](docs/guides/adding-features.md).
+
+### Quick Reference: Adding a New Entity
 
 1. Create domain entity in `internal/domain/entities/`
 2. Create Ent schema in `internal/adapters/persistence/db/schema/`
