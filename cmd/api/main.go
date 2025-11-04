@@ -56,6 +56,7 @@ func main() {
 		Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKeyID, cfg.MinIO.SecretAccessKey, ""),
 		Secure: cfg.MinIO.UseSSL,
 	})
+	
 	if err != nil {
 		log.Fatalf("failed to initialize MinIO client: %v", err)
 	}

@@ -6,18 +6,18 @@ import (
 	"net/http"
 
 	"example.com/go-yippi/internal/adapters/api/dto"
-	"example.com/go-yippi/internal/application/services"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
+	"example.com/go-yippi/internal/domain/ports"
 	"github.com/danielgtaylor/huma/v2"
 )
 
 // ProductHandler handles HTTP requests for products
 type ProductHandler struct {
-	service *services.ProductService
+	service ports.ProductService
 }
 
-func NewProductHandler(service *services.ProductService) *ProductHandler {
+func NewProductHandler(service ports.ProductService) *ProductHandler {
 	return &ProductHandler{service: service}
 }
 
