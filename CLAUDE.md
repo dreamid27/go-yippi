@@ -15,7 +15,7 @@ This is a Go-based REST API implementing **Hexagonal Architecture** (Ports and A
 Comprehensive documentation is available in the `docs/` folder:
 - **[Architecture](docs/architecture/)**: System architecture, hexagonal pattern, and dependency flow
 - **[Guides](docs/guides/)**: Getting started, adding features, and file uploads
-- **[API Documentation](docs/api/)**: Endpoint documentation for products and storage files
+- **[API Documentation](docs/api/)**: Endpoint documentation for products 
 - **[Infrastructure](docs/infrastructure/)**: Database and MinIO setup
 - **Development**: Testing and contribution guidelines
 

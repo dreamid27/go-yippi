@@ -48,10 +48,7 @@ func Load() *Config {
 			AccessKeyID:     getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 			SecretAccessKey: getEnv("MINIO_SECRET_KEY", "minioadmin123"),
 			UseSSL:          getEnvBool("MINIO_USE_SSL", false),
-			BucketName:      getEnv("MINIO_BUCKET_NAME", "storage-files"),
-		},
-		Storage: StorageConfig{
-			Backend: getEnv("STORAGE_BACKEND", "minio"), // "database" or "minio"
+			BucketName:      getEnv("MINIO_BUCKET_NAME", "go-yippi"),
 		},
 	}
 }

@@ -12,16 +12,13 @@ Welcome to the Go-Hex-Yippi documentation! This project is a REST API built with
 ### 📚 Guides
 - [Getting Started](./guides/getting-started.md) - Quick start guide for developers
 - [Adding Features](./guides/adding-features.md) - Step-by-step guide to add new features
-- [File Upload Guide](./guides/file-upload.md) - Working with file uploads
 
 ### 🔌 API Documentation
 - [Product API](./api/products.md) - Product management endpoints
-- [Storage Files API](./api/storage-files.md) - File storage and management
 - **OpenAPI Docs**: Available at `http://localhost:8080/docs` when running
 
 ### 🛠️ Infrastructure
 - [Database](./infrastructure/database.md) - Database setup, migrations, and Ent ORM
-- [MinIO Integration](./infrastructure/minio.md) - Object storage configuration
 
 ### 👨‍💻 Development
 - [Testing](./development/testing.md) - Testing guidelines and examples
