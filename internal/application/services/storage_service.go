@@ -81,3 +81,24 @@ func (s *StorageService) GetFileURL(ctx context.Context, bucket, fileName string
 
 	return url, nil
 }
+
+// DownloadFile retrieves a file from storage
+func (s *StorageService) DownloadFile(ctx context.Context, bucket, fileName string) (io.ReadCloser, int64, string, error) {
+	// Use default bucket if not specified
+	if bucket == "" {
+		bucket = s.defaultBucket
+	}
+
+	// Validate filename
+	if fileName == "" {
+		return nil, 0, "", domainErrors.NewValidationError("file_name", "filename is required")
+	}
+
+	// Get file from repository
+	reader, size, contentType, err := s.repo.GetFile(ctx, bucket, fileName)
+	if err != nil {
+		return nil, 0, "", err
+	}
+
+	return reader, size, contentType, nil
+}

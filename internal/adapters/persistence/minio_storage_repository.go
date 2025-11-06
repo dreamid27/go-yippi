@@ -69,16 +69,30 @@ func (r *MinIOStorageRepository) Remove(ctx context.Context, bucket, fileName st
 	return nil
 }
 
-// GetURL generates a public URL for the file
+// GetURL generates a relative URL for the file that will be proxied through the API
 func (r *MinIOStorageRepository) GetURL(ctx context.Context, bucket, fileName string) (string, error) {
-	// Generate URL based on MinIO endpoint
-	protocol := "http"
-	if r.useSSL {
-		protocol = "https"
+	// Return relative URL that points to our download endpoint
+	// This ensures all requests go through our service instead of directly to MinIO
+	url := fmt.Sprintf("/files/download?bucket=%s&file_name=%s", bucket, fileName)
+	return url, nil
+}
+
+// GetFile retrieves a file from MinIO and returns its content, size, and content type
+func (r *MinIOStorageRepository) GetFile(ctx context.Context, bucket, fileName string) (io.ReadCloser, int64, string, error) {
+	// Get file object from MinIO
+	object, err := r.client.GetObject(ctx, bucket, fileName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("failed to get file from MinIO: %w", err)
 	}
 
-	url := fmt.Sprintf("%s://%s/%s/%s", protocol, r.endpoint, bucket, fileName)
-	return url, nil
+	// Get file stats to retrieve size and content type
+	stat, err := object.Stat()
+	if err != nil {
+		object.Close()
+		return nil, 0, "", fmt.Errorf("failed to get file stats from MinIO: %w", err)
+	}
+
+	return object, stat.Size, stat.ContentType, nil
 }
 
 // EnsureBucket creates a bucket if it doesn't exist

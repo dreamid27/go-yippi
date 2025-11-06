@@ -50,3 +50,9 @@ type FileURLResponse struct {
 		URL string `json:"url" doc:"Public URL to access the file"`
 	}
 }
+
+// DownloadFileRequest represents the request to download a file
+type DownloadFileRequest struct {
+	Bucket   string `query:"bucket" doc:"Bucket name (optional, uses default if not specified)"`
+	FileName string `query:"file_name" required:"true" doc:"Name of the file to download"`
+}
