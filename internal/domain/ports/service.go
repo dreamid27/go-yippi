@@ -23,6 +23,17 @@ type ProductService interface {
 	QueryProducts(ctx context.Context, params *entities.QueryParams) (*entities.QueryResult, error)
 }
 
+// CategoryService defines the interface for category business logic operations
+type CategoryService interface {
+	CreateCategory(ctx context.Context, category *entities.Category) error
+	GetCategory(ctx context.Context, id int) (*entities.Category, error)
+	GetCategoryByName(ctx context.Context, name string) (*entities.Category, error)
+	ListCategories(ctx context.Context) ([]*entities.Category, error)
+	ListCategoriesByParentID(ctx context.Context, parentID *int) ([]*entities.Category, error)
+	UpdateCategory(ctx context.Context, category *entities.Category) error
+	DeleteCategory(ctx context.Context, id int) error
+}
+
 // StorageService defines the interface for file storage operations
 type StorageService interface {
 	UploadFile(ctx context.Context, bucket, fileName string, reader io.Reader, size int64, contentType string) (*entities.FileMetadata, error)

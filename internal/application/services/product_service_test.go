@@ -84,7 +84,8 @@ func (m *MockProductRepository) ListByStatus(ctx context.Context, status entitie
 func TestCreateProduct_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -117,7 +118,8 @@ func TestCreateProduct_Success(t *testing.T) {
 func TestCreateProduct_WithCustomSlug(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -144,7 +146,8 @@ func TestCreateProduct_WithCustomSlug(t *testing.T) {
 func TestCreateProduct_WithOptionalFields(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -177,7 +180,8 @@ func TestCreateProduct_WithOptionalFields(t *testing.T) {
 func TestCreateProduct_EmptySKU(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -200,7 +204,8 @@ func TestCreateProduct_EmptySKU(t *testing.T) {
 func TestCreateProduct_WhitespaceSKU(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -223,7 +228,8 @@ func TestCreateProduct_WhitespaceSKU(t *testing.T) {
 func TestCreateProduct_EmptyName(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -246,7 +252,8 @@ func TestCreateProduct_EmptyName(t *testing.T) {
 func TestCreateProduct_ZeroPrice(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -269,7 +276,8 @@ func TestCreateProduct_ZeroPrice(t *testing.T) {
 func TestCreateProduct_NegativePrice(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -292,7 +300,8 @@ func TestCreateProduct_NegativePrice(t *testing.T) {
 func TestCreateProduct_NegativeWeight(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -316,7 +325,8 @@ func TestCreateProduct_NegativeWeight(t *testing.T) {
 func TestCreateProduct_NegativeLength(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -340,7 +350,8 @@ func TestCreateProduct_NegativeLength(t *testing.T) {
 func TestCreateProduct_NegativeWidth(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -364,7 +375,8 @@ func TestCreateProduct_NegativeWidth(t *testing.T) {
 func TestCreateProduct_NegativeHeight(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -388,7 +400,8 @@ func TestCreateProduct_NegativeHeight(t *testing.T) {
 func TestCreateProduct_InvalidStatus(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -412,7 +425,8 @@ func TestCreateProduct_InvalidStatus(t *testing.T) {
 func TestCreateProduct_RepositoryDuplicateError(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{
@@ -437,7 +451,8 @@ func TestCreateProduct_RepositoryDuplicateError(t *testing.T) {
 func TestCreateProduct_RepositoryGenericError(t *testing.T) {
 	// Arrange
 	mockRepo := new(MockProductRepository)
-	service := NewProductService(mockRepo)
+	mockCategoryRepo := new(MockCategoryRepository)
+	service := NewProductService(mockRepo, mockCategoryRepo)
 	ctx := context.Background()
 
 	product := &entities.Product{

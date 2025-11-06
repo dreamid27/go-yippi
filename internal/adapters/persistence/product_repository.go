@@ -36,6 +36,11 @@ func (r *ProductRepositoryImpl) Create(ctx context.Context, prod *entities.Produ
 		builder = builder.SetImageUrls(prod.ImageURLs)
 	}
 
+	// Set category ID if provided
+	if prod.CategoryID != nil {
+		builder = builder.SetCategoryID(*prod.CategoryID)
+	}
+
 	created, err := builder.
 		SetStatus(product.Status(prod.Status)).
 		Save(ctx)
@@ -143,6 +148,13 @@ func (r *ProductRepositoryImpl) Update(ctx context.Context, prod *entities.Produ
 		builder = builder.SetImageUrls(prod.ImageURLs)
 	}
 
+	// Set or clear category ID
+	if prod.CategoryID != nil {
+		builder = builder.SetCategoryID(*prod.CategoryID)
+	} else {
+		builder = builder.ClearCategory()
+	}
+
 	_, err := builder.
 		SetStatus(product.Status(prod.Status)).
 		Save(ctx)
@@ -171,7 +183,7 @@ func (r *ProductRepositoryImpl) Delete(ctx context.Context, id int) error {
 
 // toEntity converts Ent Product to domain entity
 func (r *ProductRepositoryImpl) toEntity(p *ent.Product) *entities.Product {
-	return &entities.Product{
+	product := &entities.Product{
 		ID:          p.ID,
 		SKU:         p.Sku,
 		Slug:        p.Slug,
@@ -187,4 +199,13 @@ func (r *ProductRepositoryImpl) toEntity(p *ent.Product) *entities.Product {
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,
 	}
+
+	// Set category ID if it exists
+	if p.Edges.Category != nil {
+		product.CategoryID = &p.Edges.Category.ID
+	} else if categoryID, exists := p.QueryCategory().OnlyID(context.Background()); exists == nil {
+		product.CategoryID = &categoryID
+	}
+
+	return product
 }

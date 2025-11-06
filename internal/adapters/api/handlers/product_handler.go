@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"example.com/go-yippi/internal/adapters/api/dto"
 	"example.com/go-yippi/internal/domain/entities"
@@ -207,6 +209,22 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 		params.Sort[i] = entities.SortParam{
 			Field: s.Field,
 			Order: entities.SortOrder(s.Order),
+		}
+	}
+
+	// Parse category IDs if provided
+	if input.CategoryIDs != "" {
+		categoryIDStrs := strings.Split(input.CategoryIDs, ",")
+		params.CategoryIDs = make([]int, 0, len(categoryIDStrs))
+		for _, idStr := range categoryIDStrs {
+			idStr = strings.TrimSpace(idStr)
+			if idStr != "" {
+				id, err := strconv.Atoi(idStr)
+				if err != nil {
+					return nil, huma.Error400BadRequest("Invalid category_ids format. Expected comma-separated integers.", err)
+				}
+				params.CategoryIDs = append(params.CategoryIDs, id)
+			}
 		}
 	}
 

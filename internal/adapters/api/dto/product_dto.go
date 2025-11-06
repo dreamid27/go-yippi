@@ -84,6 +84,10 @@ type QueryProductsRequest struct {
 	// Note: This is populated by the Resolve() method and hidden from OpenAPI schema
 	Sort []SortDTO
 
+	// Category filtering - comma-separated list of category IDs
+	// Will include products from specified categories and all their subcategories
+	CategoryIDs string `query:"category_ids" doc:"Comma-separated list of category IDs (e.g., '1,2,5'). Includes products from subcategories."`
+
 	// Pagination parameters
 	Cursor       string `query:"cursor" doc:"Pagination cursor from previous response"`
 	Limit        int    `query:"limit" default:"20" doc:"Items per page (default: 20, max: 100)"`

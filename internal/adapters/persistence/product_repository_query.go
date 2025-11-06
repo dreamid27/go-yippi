@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent"
+	"example.com/go-yippi/internal/adapters/persistence/db/ent/category"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/predicate"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/product"
 	"example.com/go-yippi/internal/domain/entities"
@@ -25,6 +26,11 @@ func (r *ProductRepositoryImpl) Query(ctx context.Context, params *entities.Quer
 		}
 
 		query = query.Where(predicates...)
+	}
+
+	// Apply category filtering
+	if len(params.CategoryIDs) > 0 {
+		query = query.Where(product.HasCategoryWith(category.IDIn(params.CategoryIDs...)))
 	}
 
 	// Apply sorting (default: created_at desc, id desc)

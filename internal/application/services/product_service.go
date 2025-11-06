@@ -11,11 +11,15 @@ import (
 
 // ProductService handles business logic for products
 type ProductService struct {
-	repo ports.ProductRepository
+	repo         ports.ProductRepository
+	categoryRepo ports.CategoryRepository
 }
 
-func NewProductService(repo ports.ProductRepository) *ProductService {
-	return &ProductService{repo: repo}
+func NewProductService(repo ports.ProductRepository, categoryRepo ports.CategoryRepository) *ProductService {
+	return &ProductService{
+		repo:         repo,
+		categoryRepo: categoryRepo,
+	}
 }
 
 func (s *ProductService) CreateProduct(ctx context.Context, product *entities.Product) error {
@@ -208,6 +212,15 @@ func (s *ProductService) QueryProducts(ctx context.Context, params *entities.Que
 		if err := s.validateSort(sort); err != nil {
 			return nil, err
 		}
+	}
+
+	// Expand category IDs to include descendants
+	if len(params.CategoryIDs) > 0 {
+		expandedIDs, err := s.categoryRepo.GetDescendantIDs(ctx, params.CategoryIDs)
+		if err != nil {
+			return nil, domainErrors.NewValidationError("category_ids", "Failed to expand category IDs")
+		}
+		params.CategoryIDs = expandedIDs
 	}
 
 	return s.repo.Query(ctx, params)

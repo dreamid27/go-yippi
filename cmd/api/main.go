@@ -46,8 +46,12 @@ func main() {
 	userService := services.NewUserService(userRepo)
 	userHandler := handlers.NewUserHandler(userService)
 
+	categoryRepo := persistence.NewCategoryRepository(client)
+	categoryService := services.NewCategoryService(categoryRepo)
+	categoryHandler := handlers.NewCategoryHandler(categoryService)
+
 	productRepo := persistence.NewProductRepository(client)
-	productService := services.NewProductService(productRepo)
+	productService := services.NewProductService(productRepo, categoryRepo)
 	productHandler := handlers.NewProductHandler(productService)
 
 	// Initialize MinIO client (infrastructure)
@@ -83,6 +87,7 @@ func main() {
 
 	// Register Huma routes
 	userHandler.RegisterRoutes(humaAPI)
+	categoryHandler.RegisterRoutes(humaAPI)
 	productHandler.RegisterRoutes(humaAPI)
 	fileHandler.RegisterRoutes(humaAPI)
 	// Start server

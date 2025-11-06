@@ -42,6 +42,14 @@ func (m *MockStorageService) GetFileURL(ctx context.Context, bucket, fileName st
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockStorageService) DownloadFile(ctx context.Context, bucket, fileName string) (io.ReadCloser, int64, string, error) {
+	args := m.Called(ctx, bucket, fileName)
+	if args.Get(0) == nil {
+		return nil, args.Get(1).(int64), args.String(2), args.Error(3)
+	}
+	return args.Get(0).(io.ReadCloser), args.Get(1).(int64), args.String(2), args.Error(3)
+}
+
 // createMultipartFormData creates multipart form data for testing
 func createMultipartFormData(file []byte, fileName, bucket, contentType string) []byte {
 	var buf bytes.Buffer
