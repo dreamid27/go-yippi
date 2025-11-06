@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ProductStatus represents the status of a product
@@ -29,6 +31,7 @@ type Product struct {
 	Height      int           // in cm
 	ImageURLs   []string      // access links to product images
 	Status      ProductStatus
+	BrandID     *uuid.UUID    // optional brand association
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

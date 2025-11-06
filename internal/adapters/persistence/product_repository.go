@@ -36,6 +36,11 @@ func (r *ProductRepositoryImpl) Create(ctx context.Context, prod *entities.Produ
 		builder = builder.SetImageUrls(prod.ImageURLs)
 	}
 
+	// Set brand ID if provided
+	if prod.BrandID != nil {
+		builder = builder.SetBrandID(*prod.BrandID)
+	}
+
 	created, err := builder.
 		SetStatus(product.Status(prod.Status)).
 		Save(ctx)
@@ -143,6 +148,13 @@ func (r *ProductRepositoryImpl) Update(ctx context.Context, prod *entities.Produ
 		builder = builder.SetImageUrls(prod.ImageURLs)
 	}
 
+	// Set brand ID if provided
+	if prod.BrandID != nil {
+		builder = builder.SetBrandID(*prod.BrandID)
+	} else {
+		builder = builder.ClearBrand()
+	}
+
 	_, err := builder.
 		SetStatus(product.Status(prod.Status)).
 		Save(ctx)
@@ -171,7 +183,7 @@ func (r *ProductRepositoryImpl) Delete(ctx context.Context, id int) error {
 
 // toEntity converts Ent Product to domain entity
 func (r *ProductRepositoryImpl) toEntity(p *ent.Product) *entities.Product {
-	return &entities.Product{
+	entity := &entities.Product{
 		ID:          p.ID,
 		SKU:         p.Sku,
 		Slug:        p.Slug,
@@ -187,4 +199,11 @@ func (r *ProductRepositoryImpl) toEntity(p *ent.Product) *entities.Product {
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,
 	}
+
+	// Set brand ID if present
+	if brandID, ok := p.BrandID(); ok {
+		entity.BrandID = &brandID
+	}
+
+	return entity
 }

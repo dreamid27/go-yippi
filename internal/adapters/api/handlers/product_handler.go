@@ -172,6 +172,11 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreatePro
 		product.Status = entities.ProductStatus(*input.Body.Status)
 	}
 
+	// Handle optional brand ID
+	if input.Body.BrandID != nil {
+		product.BrandID = input.Body.BrandID
+	}
+
 	err := h.service.CreateProduct(ctx, product)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrInvalidInput) {
@@ -200,6 +205,15 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 			Operator: entities.FilterOperator(f.Operator),
 			Value:    f.Value,
 		}
+	}
+
+	// Handle brand_ids filter if provided
+	if input.BrandIDs != "" {
+		params.Filters = append(params.Filters, entities.Filter{
+			Field:    "brand_id",
+			Operator: entities.OpIn,
+			Value:    input.BrandIDs, // comma-separated UUIDs
+		})
 	}
 
 	// Convert sort parameters
@@ -248,6 +262,7 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 			Height:      product.Height,
 			ImageURLs:   product.ImageURLs,
 			Status:      string(product.Status),
+			BrandID:     product.BrandID,
 			CreatedAt:   product.CreatedAt,
 			UpdatedAt:   product.UpdatedAt,
 		}
@@ -376,6 +391,11 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, input *dto.UpdatePro
 		product.Status = entities.ProductStatus(*input.Body.Status)
 	}
 
+	// Handle optional brand ID
+	if input.Body.BrandID != nil {
+		product.BrandID = input.Body.BrandID
+	}
+
 	err := h.service.UpdateProduct(ctx, product)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
@@ -457,6 +477,7 @@ func (h *ProductHandler) mapToResponse(product *entities.Product) *dto.ProductRe
 	resp.Body.Height = product.Height
 	resp.Body.ImageURLs = product.ImageURLs
 	resp.Body.Status = string(product.Status)
+	resp.Body.BrandID = product.BrandID
 	resp.Body.CreatedAt = product.CreatedAt
 	resp.Body.UpdatedAt = product.UpdatedAt
 	return resp
