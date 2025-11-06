@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: go-yippi-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminadmin
+      POSTGRES_DB: go-test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d go-test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - go-yippi-network
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: go-yippi-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - go-yippi-network
+
+  # Go Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-yippi-app
+    environment:
+      # Server Configuration
+      SERVER_PORT: "8080"
+      SERVER_HOST: "0.0.0.0"
+
+      # Database Configuration
+      DB_DRIVER: "postgres"
+      DB_DSN: "host=postgres port=5432 user=admin dbname=go-test password=adminadmin sslmode=disable"
+
+      # MinIO Configuration
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin123"
+      MINIO_USE_SSL: "false"
+      MINIO_BUCKET_NAME: "go-yippi"
+
+      # Storage Backend
+      STORAGE_BACKEND: "minio"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - go-yippi-network
+    restart: unless-stopped
+
+networks:
+  go-yippi-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
