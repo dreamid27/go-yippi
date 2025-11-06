@@ -83,6 +83,8 @@ type ProductListItem struct {
 type QueryProductsRequest struct {
 	// Filters - array of filter conditions (parsed by custom Resolver)
 	// Usage: ?filter[0][field]=status&filter[0][operator]=eq&filter[0][value]=published
+	// Category filtering: ?filter[0][field]=category_id&filter[0][operator]=in&filter[0][value]=[1,2,5]
+	// Note: Category filtering automatically includes all subcategories
 	// Note: This is populated by the Resolve() method and hidden from OpenAPI schema
 	Filters []FilterDTO
 

@@ -11,11 +11,15 @@ import (
 
 // ProductService handles business logic for products
 type ProductService struct {
-	repo ports.ProductRepository
+	repo         ports.ProductRepository
+	categoryRepo ports.CategoryRepository
 }
 
-func NewProductService(repo ports.ProductRepository) *ProductService {
-	return &ProductService{repo: repo}
+func NewProductService(repo ports.ProductRepository, categoryRepo ports.CategoryRepository) *ProductService {
+	return &ProductService{
+		repo:         repo,
+		categoryRepo: categoryRepo,
+	}
 }
 
 func (s *ProductService) CreateProduct(ctx context.Context, product *entities.Product) error {
@@ -207,6 +211,66 @@ func (s *ProductService) QueryProducts(ctx context.Context, params *entities.Que
 	for _, sort := range params.Sort {
 		if err := s.validateSort(sort); err != nil {
 			return nil, err
+		}
+	}
+
+	// Expand category_id filters to include descendants
+	for i, filter := range params.Filters {
+		if filter.Field == "category_id" && (filter.Operator == entities.OpIn || filter.Operator == entities.OpEqual) {
+			// Extract category IDs from filter value
+			var categoryIDs []int
+
+			if filter.Operator == entities.OpEqual {
+				// Single ID: convert to int
+				switch v := filter.Value.(type) {
+				case float64:
+					categoryIDs = []int{int(v)}
+				case int:
+					categoryIDs = []int{v}
+				default:
+					return nil, domainErrors.NewValidationError("category_id", "Invalid category_id value type")
+				}
+			} else if filter.Operator == entities.OpIn {
+				// Multiple IDs: convert array to int slice
+				switch v := filter.Value.(type) {
+				case []interface{}:
+					categoryIDs = make([]int, 0, len(v))
+					for _, id := range v {
+						switch idVal := id.(type) {
+						case float64:
+							categoryIDs = append(categoryIDs, int(idVal))
+						case int:
+							categoryIDs = append(categoryIDs, idVal)
+						default:
+							return nil, domainErrors.NewValidationError("category_id", "Invalid category_id array value type")
+						}
+					}
+				default:
+					return nil, domainErrors.NewValidationError("category_id", "Invalid category_id value type for 'in' operator")
+				}
+			}
+
+			// Expand to include all descendants
+			if len(categoryIDs) > 0 {
+				expandedIDs, err := s.categoryRepo.GetDescendantIDs(ctx, categoryIDs)
+				if err != nil {
+					return nil, domainErrors.NewValidationError("category_id", "Failed to expand category IDs")
+				}
+
+				// Update the filter with expanded IDs
+				if len(expandedIDs) == 1 {
+					params.Filters[i].Value = expandedIDs[0]
+					params.Filters[i].Operator = entities.OpEqual
+				} else {
+					// Convert to []interface{} for compatibility
+					expandedValues := make([]interface{}, len(expandedIDs))
+					for j, id := range expandedIDs {
+						expandedValues[j] = id
+					}
+					params.Filters[i].Value = expandedValues
+					params.Filters[i].Operator = entities.OpIn
+				}
+			}
 		}
 	}
 

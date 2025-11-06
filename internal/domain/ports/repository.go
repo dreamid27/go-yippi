@@ -34,6 +34,18 @@ type ProductRepository interface {
 	ListByStatus(ctx context.Context, status entities.ProductStatus) ([]*entities.Product, error)
 }
 
+// CategoryRepository defines the interface for category data operations
+type CategoryRepository interface {
+	Create(ctx context.Context, category *entities.Category) error
+	GetByID(ctx context.Context, id int) (*entities.Category, error)
+	GetByName(ctx context.Context, name string) (*entities.Category, error)
+	List(ctx context.Context) ([]*entities.Category, error)
+	ListByParentID(ctx context.Context, parentID *int) ([]*entities.Category, error)
+	Update(ctx context.Context, category *entities.Category) error
+	Delete(ctx context.Context, id int) error
+	GetDescendantIDs(ctx context.Context, categoryIDs []int) ([]int, error)
+}
+
 // BrandRepository defines the interface for brand data operations
 type BrandRepository interface {
 	Create(ctx context.Context, brand *entities.Brand) error
