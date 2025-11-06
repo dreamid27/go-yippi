@@ -44,10 +44,9 @@ type SortParam struct {
 
 // QueryParams contains all parameters for a query
 type QueryParams struct {
-	Filters     []Filter
-	Sort        []SortParam
-	CategoryIDs []int // Category IDs to filter by (includes descendants)
-	Pagination  *PaginationParams
+	Filters    []Filter
+	Sort       []SortParam
+	Pagination *PaginationParams
 }
 
 // QueryResult contains the result of a query with pagination metadata

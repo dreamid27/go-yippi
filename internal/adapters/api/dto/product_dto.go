@@ -76,6 +76,8 @@ type ProductListItem struct {
 type QueryProductsRequest struct {
 	// Filters - array of filter conditions (parsed by custom Resolver)
 	// Usage: ?filter[0][field]=status&filter[0][operator]=eq&filter[0][value]=published
+	// Category filtering: ?filter[0][field]=category_id&filter[0][operator]=in&filter[0][value]=[1,2,5]
+	// Note: Category filtering automatically includes all subcategories
 	// Note: This is populated by the Resolve() method and hidden from OpenAPI schema
 	Filters []FilterDTO
 
@@ -83,10 +85,6 @@ type QueryProductsRequest struct {
 	// Usage: ?sort[0][field]=price&sort[0][order]=desc
 	// Note: This is populated by the Resolve() method and hidden from OpenAPI schema
 	Sort []SortDTO
-
-	// Category filtering - comma-separated list of category IDs
-	// Will include products from specified categories and all their subcategories
-	CategoryIDs string `query:"category_ids" doc:"Comma-separated list of category IDs (e.g., '1,2,5'). Includes products from subcategories."`
 
 	// Pagination parameters
 	Cursor       string `query:"cursor" doc:"Pagination cursor from previous response"`

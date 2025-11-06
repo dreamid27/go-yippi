@@ -28,11 +28,6 @@ func (r *ProductRepositoryImpl) Query(ctx context.Context, params *entities.Quer
 		query = query.Where(predicates...)
 	}
 
-	// Apply category filtering
-	if len(params.CategoryIDs) > 0 {
-		query = query.Where(product.HasCategoryWith(category.IDIn(params.CategoryIDs...)))
-	}
-
 	// Apply sorting (default: created_at desc, id desc)
 	query = r.applySorting(query, params.Sort)
 
@@ -133,6 +128,8 @@ func (r *ProductRepositoryImpl) buildSingleFilterPredicate(filter entities.Filte
 		return r.buildIntFilter(filter, product.Height)
 	case "status":
 		return r.buildStatusFilter(filter)
+	case "category_id":
+		return r.buildCategoryFilter(filter)
 	case "created_at":
 		return r.buildTimeFilter(filter, product.CreatedAt)
 	case "updated_at":
@@ -313,6 +310,41 @@ func (r *ProductRepositoryImpl) buildStatusFilter(filter entities.Filter) (predi
 		return product.StatusIn(statuses...), nil
 	default:
 		return nil, fmt.Errorf("unsupported operator %s for status field", filter.Operator)
+	}
+}
+
+// buildCategoryFilter builds predicates for category_id field
+func (r *ProductRepositoryImpl) buildCategoryFilter(filter entities.Filter) (predicate.Product, error) {
+	switch filter.Operator {
+	case entities.OpEqual:
+		val, ok := filter.Value.(float64)
+		if !ok {
+			intVal, ok := filter.Value.(int)
+			if !ok {
+				return nil, fmt.Errorf("invalid value type for category_id filter: %T", filter.Value)
+			}
+			return product.HasCategoryWith(category.IDEQ(intVal)), nil
+		}
+		return product.HasCategoryWith(category.IDEQ(int(val))), nil
+	case entities.OpIn:
+		vals, ok := filter.Value.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("invalid value type for category_id in filter: %T", filter.Value)
+		}
+		categoryIDs := make([]int, len(vals))
+		for i, v := range vals {
+			switch idVal := v.(type) {
+			case float64:
+				categoryIDs[i] = int(idVal)
+			case int:
+				categoryIDs[i] = idVal
+			default:
+				return nil, fmt.Errorf("invalid value in category_id array: %T", v)
+			}
+		}
+		return product.HasCategoryWith(category.IDIn(categoryIDs...)), nil
+	default:
+		return nil, fmt.Errorf("unsupported operator %s for category_id field (only 'eq' and 'in' are supported)", filter.Operator)
 	}
 }
 
