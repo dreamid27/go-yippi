@@ -162,6 +162,11 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreatePro
 		product.Height = *input.Body.Height
 	}
 
+	// Handle image URLs
+	if input.Body.ImageURLs != nil {
+		product.ImageURLs = input.Body.ImageURLs
+	}
+
 	// Handle optional status (will default to draft in service if not provided)
 	if input.Body.Status != nil {
 		product.Status = entities.ProductStatus(*input.Body.Status)
@@ -241,6 +246,7 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 			Length:      product.Length,
 			Width:       product.Width,
 			Height:      product.Height,
+			ImageURLs:   product.ImageURLs,
 			Status:      string(product.Status),
 			CreatedAt:   product.CreatedAt,
 			UpdatedAt:   product.UpdatedAt,
@@ -322,6 +328,7 @@ func (h *ProductHandler) ListProductsByStatus(ctx context.Context, input *dto.Li
 			Length:      product.Length,
 			Width:       product.Width,
 			Height:      product.Height,
+			ImageURLs:   product.ImageURLs,
 			Status:      string(product.Status),
 			CreatedAt:   product.CreatedAt,
 			UpdatedAt:   product.UpdatedAt,
@@ -357,6 +364,11 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, input *dto.UpdatePro
 	}
 	if input.Body.Height != nil {
 		product.Height = *input.Body.Height
+	}
+
+	// Handle image URLs
+	if input.Body.ImageURLs != nil {
+		product.ImageURLs = input.Body.ImageURLs
 	}
 
 	// Handle optional status (will default to draft in service if not provided)
@@ -443,6 +455,7 @@ func (h *ProductHandler) mapToResponse(product *entities.Product) *dto.ProductRe
 	resp.Body.Length = product.Length
 	resp.Body.Width = product.Width
 	resp.Body.Height = product.Height
+	resp.Body.ImageURLs = product.ImageURLs
 	resp.Body.Status = string(product.Status)
 	resp.Body.CreatedAt = product.CreatedAt
 	resp.Body.UpdatedAt = product.UpdatedAt

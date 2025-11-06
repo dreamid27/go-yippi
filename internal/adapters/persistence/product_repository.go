@@ -19,7 +19,7 @@ func NewProductRepository(client *ent.Client) *ProductRepositoryImpl {
 }
 
 func (r *ProductRepositoryImpl) Create(ctx context.Context, prod *entities.Product) error {
-	created, err := r.client.Product.
+	builder := r.client.Product.
 		Create().
 		SetSku(prod.SKU).
 		SetSlug(prod.Slug).
@@ -29,7 +29,14 @@ func (r *ProductRepositoryImpl) Create(ctx context.Context, prod *entities.Produ
 		SetWeight(prod.Weight).
 		SetLength(prod.Length).
 		SetWidth(prod.Width).
-		SetHeight(prod.Height).
+		SetHeight(prod.Height)
+
+	// Set image URLs if provided
+	if prod.ImageURLs != nil {
+		builder = builder.SetImageUrls(prod.ImageURLs)
+	}
+
+	created, err := builder.
 		SetStatus(product.Status(prod.Status)).
 		Save(ctx)
 	if err != nil {
@@ -119,7 +126,7 @@ func (r *ProductRepositoryImpl) ListByStatus(ctx context.Context, status entitie
 }
 
 func (r *ProductRepositoryImpl) Update(ctx context.Context, prod *entities.Product) error {
-	_, err := r.client.Product.
+	builder := r.client.Product.
 		UpdateOneID(prod.ID).
 		SetSku(prod.SKU).
 		SetSlug(prod.Slug).
@@ -129,7 +136,14 @@ func (r *ProductRepositoryImpl) Update(ctx context.Context, prod *entities.Produ
 		SetWeight(prod.Weight).
 		SetLength(prod.Length).
 		SetWidth(prod.Width).
-		SetHeight(prod.Height).
+		SetHeight(prod.Height)
+
+	// Set image URLs if provided
+	if prod.ImageURLs != nil {
+		builder = builder.SetImageUrls(prod.ImageURLs)
+	}
+
+	_, err := builder.
 		SetStatus(product.Status(prod.Status)).
 		Save(ctx)
 	if err != nil {
@@ -168,6 +182,7 @@ func (r *ProductRepositoryImpl) toEntity(p *ent.Product) *entities.Product {
 		Length:      p.Length,
 		Width:       p.Width,
 		Height:      p.Height,
+		ImageURLs:   p.ImageUrls,
 		Status:      entities.ProductStatus(p.Status),
 		CreatedAt:   p.CreatedAt,
 		UpdatedAt:   p.UpdatedAt,

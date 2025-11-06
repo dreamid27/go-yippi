@@ -48,6 +48,9 @@ func (Product) Fields() []ent.Field {
 			NonNegative().
 			Default(0).
 			Comment("Height in cm for courier calculation"),
+		field.JSON("image_urls", []string{}).
+			Optional().
+			Comment("Access links to product images"),
 		field.Enum("status").
 			Values("draft", "published", "archived").
 			Default("draft").
