@@ -27,6 +27,7 @@ type Product struct {
 	Length      int           // in cm
 	Width       int           // in cm
 	Height      int           // in cm
+	ImageURLs   []string      // access links to product images
 	Status      ProductStatus
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
