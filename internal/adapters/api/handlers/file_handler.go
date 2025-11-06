@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -59,6 +60,17 @@ func (h *FileHandler) RegisterRoutes(api huma.API) {
 		Tags:        []string{"Files"},
 		Errors:      []int{http.StatusBadRequest, http.StatusInternalServerError},
 	}, h.GetFileURL)
+
+	// Download file
+	huma.Register(api, huma.Operation{
+		OperationID: "download-file",
+		Method:      http.MethodGet,
+		Path:        "/files/download",
+		Summary:     "Download a file",
+		Description: "Downloads a file from storage and streams it to the client",
+		Tags:        []string{"Files"},
+		Errors:      []int{http.StatusBadRequest, http.StatusNotFound, http.StatusInternalServerError},
+	}, h.DownloadFile)
 }
 
 // UploadFile handles file upload requests using multipart/form-data
@@ -242,6 +254,40 @@ func (h *FileHandler) GetFileURL(ctx context.Context, input *dto.GetFileURLReque
 	response.Body.URL = url
 
 	return response, nil
+}
+
+// DownloadFile handles file download requests and streams the file to the client
+func (h *FileHandler) DownloadFile(ctx context.Context, input *dto.DownloadFileRequest) (*huma.StreamResponse, error) {
+	// Validate filename
+	if input.FileName == "" {
+		return nil, huma.Error400BadRequest("file_name is required")
+	}
+
+	// Download file
+	reader, size, contentType, err := h.service.DownloadFile(ctx, input.Bucket, input.FileName)
+	if err != nil {
+		// Handle domain errors
+		if errors.Is(err, domainErrors.ErrInvalidInput) {
+			return nil, huma.Error400BadRequest(err.Error())
+		}
+
+		return nil, huma.Error500InternalServerError("failed to download file", err)
+	}
+
+	// Return stream response
+	return &huma.StreamResponse{
+		Body: func(ctx huma.Context) {
+			defer reader.Close()
+
+			// Set content type and content length headers
+			ctx.SetHeader("Content-Type", contentType)
+			ctx.SetHeader("Content-Length", fmt.Sprintf("%d", size))
+			ctx.SetHeader("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", input.FileName))
+
+			// Stream file content to response
+			io.Copy(ctx.BodyWriter(), reader)
+		},
+	}, nil
 }
 
 // mapToFileMetadataDTO maps domain entity to DTO

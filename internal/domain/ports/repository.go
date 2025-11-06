@@ -44,6 +44,9 @@ type StorageRepository interface {
 	// GetURL generates a public URL for accessing the file
 	GetURL(ctx context.Context, bucket, fileName string) (string, error)
 
+	// GetFile retrieves a file from storage and returns its content
+	GetFile(ctx context.Context, bucket, fileName string) (io.ReadCloser, int64, string, error)
+
 	// EnsureBucket creates a bucket if it doesn't exist
 	EnsureBucket(ctx context.Context, bucket string) error
 }
