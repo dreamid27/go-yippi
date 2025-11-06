@@ -96,9 +96,6 @@ type QueryProductsRequest struct {
 	Limit        int    `query:"limit" default:"20" doc:"Items per page (default: 20, max: 100)"`
 	Direction    string `query:"direction" default:"forward" doc:"Pagination direction: forward or backward (default: forward)"`
 	IncludeTotal bool   `query:"include_total" default:"false" doc:"Include total count in response (default: false, may be expensive)"`
-
-	// Brand IDs filter (comma-separated)
-	BrandIDs string `query:"brand_ids" doc:"Filter by brand IDs (comma-separated UUIDs, e.g., 'uuid1,uuid2')"`
 }
 
 // QueryProductsResponse defines the response for querying products with pagination

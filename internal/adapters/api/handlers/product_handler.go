@@ -207,15 +207,6 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 		}
 	}
 
-	// Handle brand_ids filter if provided
-	if input.BrandIDs != "" {
-		params.Filters = append(params.Filters, entities.Filter{
-			Field:    "brand_id",
-			Operator: entities.OpIn,
-			Value:    input.BrandIDs, // comma-separated UUIDs
-		})
-	}
-
 	// Convert sort parameters
 	for i, s := range input.Sort {
 		params.Sort[i] = entities.SortParam{
