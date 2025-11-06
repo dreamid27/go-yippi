@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"example.com/go-yippi/internal/domain/entities"
+	"github.com/google/uuid"
 )
 
 // ProductService defines the interface for product business logic operations
@@ -32,6 +33,16 @@ type CategoryService interface {
 	ListCategoriesByParentID(ctx context.Context, parentID *int) ([]*entities.Category, error)
 	UpdateCategory(ctx context.Context, category *entities.Category) error
 	DeleteCategory(ctx context.Context, id int) error
+}
+
+// BrandService defines the interface for brand business logic operations
+type BrandService interface {
+	CreateBrand(ctx context.Context, brand *entities.Brand) error
+	GetBrand(ctx context.Context, id uuid.UUID) (*entities.Brand, error)
+	GetBrandByName(ctx context.Context, name string) (*entities.Brand, error)
+	ListBrands(ctx context.Context) ([]*entities.Brand, error)
+	UpdateBrand(ctx context.Context, brand *entities.Brand) error
+	DeleteBrand(ctx context.Context, id uuid.UUID) error
 }
 
 // StorageService defines the interface for file storage operations

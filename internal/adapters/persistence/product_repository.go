@@ -41,6 +41,11 @@ func (r *ProductRepositoryImpl) Create(ctx context.Context, prod *entities.Produ
 		builder = builder.SetCategoryID(*prod.CategoryID)
 	}
 
+	// Set brand ID if provided
+	if prod.BrandID != nil {
+		builder = builder.SetBrandID(*prod.BrandID)
+	}
+
 	created, err := builder.
 		SetStatus(product.Status(prod.Status)).
 		Save(ctx)
@@ -155,6 +160,13 @@ func (r *ProductRepositoryImpl) Update(ctx context.Context, prod *entities.Produ
 		builder = builder.ClearCategory()
 	}
 
+	// Set or clear brand ID
+	if prod.BrandID != nil {
+		builder = builder.SetBrandID(*prod.BrandID)
+	} else {
+		builder = builder.ClearBrand()
+	}
+
 	_, err := builder.
 		SetStatus(product.Status(prod.Status)).
 		Save(ctx)
@@ -205,6 +217,13 @@ func (r *ProductRepositoryImpl) toEntity(p *ent.Product) *entities.Product {
 		product.CategoryID = &p.Edges.Category.ID
 	} else if categoryID, exists := p.QueryCategory().OnlyID(context.Background()); exists == nil {
 		product.CategoryID = &categoryID
+	}
+
+	// Set brand ID if it exists
+	if p.Edges.Brand != nil {
+		product.BrandID = &p.Edges.Brand.ID
+	} else if brandID, exists := p.QueryBrand().OnlyID(context.Background()); exists == nil {
+		product.BrandID = &brandID
 	}
 
 	return product

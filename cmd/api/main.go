@@ -54,6 +54,10 @@ func main() {
 	productService := services.NewProductService(productRepo, categoryRepo)
 	productHandler := handlers.NewProductHandler(productService)
 
+	brandRepo := persistence.NewBrandRepository(client)
+	brandService := services.NewBrandService(brandRepo)
+	brandHandler := handlers.NewBrandHandler(brandService)
+
 	// Initialize MinIO client (infrastructure)
 	minioClient, err := minio.New(cfg.MinIO.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKeyID, cfg.MinIO.SecretAccessKey, ""),
@@ -89,6 +93,7 @@ func main() {
 	userHandler.RegisterRoutes(humaAPI)
 	categoryHandler.RegisterRoutes(humaAPI)
 	productHandler.RegisterRoutes(humaAPI)
+	brandHandler.RegisterRoutes(humaAPI)
 	fileHandler.RegisterRoutes(humaAPI)
 	// Start server
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)

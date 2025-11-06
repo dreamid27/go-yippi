@@ -71,5 +71,8 @@ func (Product) Edges() []ent.Edge {
 		edge.From("category", Category.Type).
 			Ref("products").
 			Unique(),
+		edge.From("brand", Brand.Type).
+			Ref("products").
+			Unique(),
 	}
 }

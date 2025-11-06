@@ -8,10 +8,12 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent"
+	"example.com/go-yippi/internal/adapters/persistence/db/ent/brand"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/category"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/predicate"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/product"
 	"example.com/go-yippi/internal/domain/entities"
+	"github.com/google/uuid"
 )
 
 // Query performs a flexible query with filters, sorting, and pagination
@@ -130,6 +132,8 @@ func (r *ProductRepositoryImpl) buildSingleFilterPredicate(filter entities.Filte
 		return r.buildStatusFilter(filter)
 	case "category_id":
 		return r.buildCategoryFilter(filter)
+	case "brand_id":
+		return r.buildBrandIDFilter(filter)
 	case "created_at":
 		return r.buildTimeFilter(filter, product.CreatedAt)
 	case "updated_at":
@@ -345,6 +349,73 @@ func (r *ProductRepositoryImpl) buildCategoryFilter(filter entities.Filter) (pre
 		return product.HasCategoryWith(category.IDIn(categoryIDs...)), nil
 	default:
 		return nil, fmt.Errorf("unsupported operator %s for category_id field (only 'eq' and 'in' are supported)", filter.Operator)
+	}
+}
+
+// buildBrandIDFilter builds predicates for brand_id field (UUID)
+func (r *ProductRepositoryImpl) buildBrandIDFilter(filter entities.Filter) (predicate.Product, error) {
+	switch filter.Operator {
+	case entities.OpEqual:
+		val, ok := filter.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid value type for brand_id filter: %T", filter.Value)
+		}
+		brandID, err := uuid.Parse(val)
+		if err != nil {
+			return nil, fmt.Errorf("invalid UUID for brand_id: %w", err)
+		}
+		return product.HasBrandWith(brand.IDEQ(brandID)), nil
+	case entities.OpNotEqual:
+		val, ok := filter.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid value type for brand_id filter: %T", filter.Value)
+		}
+		brandID, err := uuid.Parse(val)
+		if err != nil {
+			return nil, fmt.Errorf("invalid UUID for brand_id: %w", err)
+		}
+		return product.HasBrandWith(brand.IDNEQ(brandID)), nil
+	case entities.OpIn:
+		vals, ok := filter.Value.([]interface{})
+		if !ok {
+			// Try comma-separated string
+			val, ok := filter.Value.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid value type for brand_id in filter: %T", filter.Value)
+			}
+			strVals := strings.Split(val, ",")
+			brandIDs := make([]uuid.UUID, 0, len(strVals))
+			for _, s := range strVals {
+				brandID, err := uuid.Parse(strings.TrimSpace(s))
+				if err != nil {
+					// Skip invalid UUIDs
+					continue
+				}
+				brandIDs = append(brandIDs, brandID)
+			}
+			if len(brandIDs) == 0 {
+				return nil, fmt.Errorf("no valid UUIDs found in brand_ids filter")
+			}
+			return product.HasBrandWith(brand.IDIn(brandIDs...)), nil
+		}
+		brandIDs := make([]uuid.UUID, 0, len(vals))
+		for _, v := range vals {
+			str, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid value in array: %T", v)
+			}
+			brandID, err := uuid.Parse(str)
+			if err != nil {
+				continue // Skip invalid UUIDs
+			}
+			brandIDs = append(brandIDs, brandID)
+		}
+		if len(brandIDs) == 0 {
+			return nil, fmt.Errorf("no valid UUIDs found in brand_ids filter")
+		}
+		return product.HasBrandWith(brand.IDIn(brandIDs...)), nil
+	default:
+		return nil, fmt.Errorf("unsupported operator %s for brand_id field", filter.Operator)
 	}
 }
 
