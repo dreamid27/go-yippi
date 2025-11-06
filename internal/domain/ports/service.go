@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"io"
 
 	"example.com/go-yippi/internal/domain/entities"
 )
@@ -20,4 +21,11 @@ type ProductService interface {
 	PublishProduct(ctx context.Context, id int) error
 	ArchiveProduct(ctx context.Context, id int) error
 	QueryProducts(ctx context.Context, params *entities.QueryParams) (*entities.QueryResult, error)
+}
+
+// StorageService defines the interface for file storage operations
+type StorageService interface {
+	UploadFile(ctx context.Context, bucket, fileName string, reader io.Reader, size int64, contentType string) (*entities.FileMetadata, error)
+	DeleteFile(ctx context.Context, bucket, fileName string) error
+	GetFileURL(ctx context.Context, bucket, fileName string) (string, error)
 }

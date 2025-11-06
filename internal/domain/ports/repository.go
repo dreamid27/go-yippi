@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"io"
 
 	"example.com/go-yippi/internal/domain/entities"
 )
@@ -30,4 +31,19 @@ type ProductRepository interface {
 	// Legacy methods (can be deprecated in favor of Query)
 	List(ctx context.Context) ([]*entities.Product, error)
 	ListByStatus(ctx context.Context, status entities.ProductStatus) ([]*entities.Product, error)
+}
+
+// StorageRepository defines the interface for file storage operations
+type StorageRepository interface {
+	// Store uploads a file to storage and returns metadata
+	Store(ctx context.Context, bucket, fileName string, reader io.Reader, size int64, contentType string) (*entities.FileMetadata, error)
+
+	// Remove deletes a file from storage
+	Remove(ctx context.Context, bucket, fileName string) error
+
+	// GetURL generates a public URL for accessing the file
+	GetURL(ctx context.Context, bucket, fileName string) (string, error)
+
+	// EnsureBucket creates a bucket if it doesn't exist
+	EnsureBucket(ctx context.Context, bucket string) error
 }

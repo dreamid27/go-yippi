@@ -50,18 +50,17 @@ func main() {
 	productService := services.NewProductService(productRepo)
 	productHandler := handlers.NewProductHandler(productService)
 
-
-	// Initialize MinIO client
+	// Initialize MinIO client (infrastructure)
 	minioClient, err := minio.New(cfg.MinIO.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKeyID, cfg.MinIO.SecretAccessKey, ""),
 		Secure: cfg.MinIO.UseSSL,
 	})
-	
+
 	if err != nil {
 		log.Fatalf("failed to initialize MinIO client: %v", err)
 	}
 
-	// Ensure bucket exists
+	// Ensure default bucket exists
 	ctx := context.Background()
 	exists, err := minioClient.BucketExists(ctx, cfg.MinIO.BucketName)
 	if err != nil {
@@ -75,10 +74,17 @@ func main() {
 		log.Printf("Created bucket: %s", cfg.MinIO.BucketName)
 	}
 
+	// Initialize storage repository (adapter)
+	storageRepo := persistence.NewMinIOStorageRepository(minioClient, cfg.MinIO.Endpoint, cfg.MinIO.UseSSL)
+	// Initialize storage service (application layer)
+	storageService := services.NewStorageService(storageRepo, cfg.MinIO.BucketName)
+	// Initialize file handler (API adapter)
+	fileHandler := handlers.NewFileHandler(storageService)
 
 	// Register Huma routes
 	userHandler.RegisterRoutes(humaAPI)
 	productHandler.RegisterRoutes(humaAPI)
+	fileHandler.RegisterRoutes(humaAPI)
 	// Start server
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Starting server on %s", addr)
