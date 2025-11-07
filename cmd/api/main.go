@@ -38,8 +38,28 @@ func main() {
 	// Initialize Fiber app
 	app := fiber.New()
 
-	// Initialize Huma API
-	humaAPI := humafiber.New(app, huma.DefaultConfig("Go Hexagonal API", "1.0.0"))
+	// Initialize Huma API with custom config for Scalar docs
+	humaConfig := huma.DefaultConfig("Go Hexagonal API", "1.0.0")
+	humaConfig.DocsPath = "" // Disable default docs to use Scalar instead
+	humaAPI := humafiber.New(app, humaConfig)
+
+	// Add custom /docs route for Scalar API documentation
+	app.Get("/docs", func(c *fiber.Ctx) error {
+		c.Set("Content-Type", "text/html")
+		html := `<!doctype html>
+<html>
+  <head>
+    <title>API Reference - Go Hexagonal API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <script id="api-reference" data-url="/openapi.json"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </body>
+</html>`
+		return c.SendString(html)
+	})
 
 	// Dependency injection
 	userRepo := persistence.NewUserRepository(client)
