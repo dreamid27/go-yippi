@@ -21,7 +21,22 @@ docker run --name postgres \
   -p 5432:5432 -d postgres:15
 ```
 
-### 3. Run the API
+### 3. MinIO Setup (Object Storage)
+```bash
+# Docker
+docker run --name minio \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin123 \
+  -p 9000:9000 \
+  -p 9001:9001 \
+  -d minio/minio server /data --console-address ":9001"
+```
+
+**Access MinIO Console**: `http://localhost:9001` (minioadmin / minioadmin123)
+
+**Note**: The application will automatically create the `go-yippi` bucket on startup. For easier setup with both PostgreSQL and MinIO, see [DOCKER.md](../../DOCKER.md) for docker-compose instructions.
+
+### 4. Run the API
 ```bash
 # Clone and enter directory
 cd go-hex-yippi
@@ -33,7 +48,7 @@ go mod download
 make run
 ```
 
-### 4. Test the API
+### 5. Test the API
 Open browser: `http://localhost:8080/docs`
 
 ## 📝 First API Call
@@ -128,6 +143,21 @@ rm -rf internal/adapters/persistence/db/ent
 make generate
 ```
 
+### MinIO Connection Error
+```bash
+# Verify MinIO is running
+docker ps | grep minio
+
+# Check MinIO health
+curl http://localhost:9000/minio/health/live
+
+# Restart MinIO
+docker restart minio
+
+# View MinIO logs
+docker logs minio
+```
+
 ## 💡 Tips
 
 - Use **Swagger UI** at `/docs` for interactive testing
@@ -139,9 +169,18 @@ make generate
 
 ### Environment Variables
 ```bash
+# Server
 export SERVER_PORT=8080
 export SERVER_HOST=0.0.0.0
+
+# Database
 export DB_DSN="host=localhost port=5432 user=admin dbname=go-test password=adminadmin sslmode=disable"
+
+# MinIO
+export MINIO_ENDPOINT="localhost:9000"
+export MINIO_ACCESS_KEY="minioadmin"
+export MINIO_SECRET_KEY="minioadmin123"
+export MINIO_BUCKET_NAME="go-yippi"
 ```
 
 ### Project Status

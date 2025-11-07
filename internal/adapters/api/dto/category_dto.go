@@ -49,7 +49,7 @@ type ListCategoriesResponse struct {
 
 // ListCategoriesByParentRequest defines the request for listing categories by parent
 type ListCategoriesByParentRequest struct {
-	ParentID *int `query:"parent_id" doc:"Parent category ID (omit or null for root categories)"`
+	ParentID int `query:"parent_id" default:"-1" doc:"Parent category ID (0 for root categories, -1 or omit for all categories)"`
 }
 
 // UpdateCategoryRequest defines the request for updating a category

@@ -169,7 +169,13 @@ func (h *CategoryHandler) ListCategories(ctx context.Context, input *struct{}) (
 }
 
 func (h *CategoryHandler) ListCategoriesByParent(ctx context.Context, input *dto.ListCategoriesByParentRequest) (*dto.ListCategoriesResponse, error) {
-	categories, err := h.service.ListCategoriesByParentID(ctx, input.ParentID)
+	// Convert query param to pointer: -1 (not provided) -> nil, >= 0 -> &value
+	var parentID *int
+	if input.ParentID >= 0 {
+		parentID = &input.ParentID
+	}
+
+	categories, err := h.service.ListCategoriesByParentID(ctx, parentID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrInvalidInput) {
 			return nil, huma.Error400BadRequest("Invalid input", err)
