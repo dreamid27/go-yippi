@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 
 	"example.com/go-yippi/internal/adapters/api/dto"
@@ -75,87 +74,43 @@ func (h *FileHandler) RegisterRoutes(api huma.API) {
 
 // UploadFile handles file upload requests using multipart/form-data
 func (h *FileHandler) UploadFile(ctx context.Context, input *dto.UploadFileRequest) (*dto.FileMetadataResponse, error) {
-	// Parse multipart form data from raw body
-	reader := bytes.NewReader(input.RawBody)
+	// Get form data from multipart request
+	formData := input.RawBody.Data()
 
-	// Extract boundary from content-type header (Huma should handle this)
-	// For now, we'll parse the multipart form manually
-	multipartReader := multipart.NewReader(reader, extractBoundary(input.RawBody))
-
-	var fileData []byte
-	var fileName string
-	var bucket string
-	var contentType string
-
-	// Parse all form fields
-	for {
-		part, err := multipartReader.NextPart()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, huma.Error400BadRequest("failed to parse multipart form: " + err.Error())
-		}
-
-		fieldName := part.FormName()
-
-		switch fieldName {
-		case "file":
-			// Read file content
-			fileData, err = io.ReadAll(part)
-			if err != nil {
-				return nil, huma.Error400BadRequest("failed to read file content: " + err.Error())
-			}
-			// Get original filename if not provided separately
-			if fileName == "" && part.FileName() != "" {
-				fileName = part.FileName()
-			}
-			// Auto-detect content type from file if not provided
-			if contentType == "" {
-				contentType = http.DetectContentType(fileData)
-			}
-
-		case "file_name":
-			// Read custom filename
-			data, err := io.ReadAll(part)
-			if err != nil {
-				return nil, huma.Error400BadRequest("failed to read file_name field: " + err.Error())
-			}
-			fileName = string(data)
-
-		case "bucket":
-			// Read bucket name
-			data, err := io.ReadAll(part)
-			if err != nil {
-				return nil, huma.Error400BadRequest("failed to read bucket field: " + err.Error())
-			}
-			bucket = string(data)
-
-		case "content_type":
-			// Read custom content type
-			data, err := io.ReadAll(part)
-			if err != nil {
-				return nil, huma.Error400BadRequest("failed to read content_type field: " + err.Error())
-			}
-			contentType = string(data)
-		}
-
-		part.Close()
+	// Check if file was provided
+	if !formData.File.IsSet {
+		return nil, huma.Error400BadRequest("file is required")
 	}
 
-	// Validate required fields
-	if len(fileData) == 0 {
-		return nil, huma.Error400BadRequest("file is required")
+	// Read file content
+	fileData, err := io.ReadAll(formData.File.File)
+	if err != nil {
+		return nil, huma.Error400BadRequest("failed to read file content: " + err.Error())
+	}
+
+	// Determine filename: use custom file_name if provided, otherwise use uploaded filename
+	fileName := formData.FileName
+	if fileName == "" {
+		fileName = formData.File.Filename
 	}
 
 	if fileName == "" {
 		return nil, huma.Error400BadRequest("file_name is required (either as form field or from uploaded file)")
 	}
 
-	// Default content type if still not set
+	// Determine content type: use custom content_type if provided, otherwise auto-detect
+	contentType := formData.ContentType
+	if contentType == "" {
+		contentType = http.DetectContentType(fileData)
+	}
+
+	// Default content type if still not detected
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
+
+	// Use provided bucket or empty string for default
+	bucket := formData.Bucket
 
 	// Create reader from file bytes
 	fileReader := bytes.NewReader(fileData)
@@ -186,36 +141,6 @@ func (h *FileHandler) UploadFile(ctx context.Context, input *dto.UploadFileReque
 	}
 
 	return response, nil
-}
-
-// extractBoundary extracts the boundary string from multipart form data
-func extractBoundary(data []byte) string {
-	// Simple boundary extraction - look for the first boundary in the data
-	// Format: ------WebKitFormBoundary...
-	dataStr := string(data)
-	if len(dataStr) < 2 {
-		return ""
-	}
-
-	// Find first boundary (starts with --)
-	start := bytes.Index(data, []byte("--"))
-	if start == -1 {
-		return ""
-	}
-
-	// Find end of boundary (CR LF)
-	end := bytes.Index(data[start:], []byte("\r\n"))
-	if end == -1 {
-		end = bytes.Index(data[start:], []byte("\n"))
-	}
-
-	if end == -1 {
-		return ""
-	}
-
-	// Extract boundary without the leading --
-	boundary := string(data[start+2 : start+end])
-	return boundary
 }
 
 // DeleteFile handles file deletion requests
