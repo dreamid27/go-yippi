@@ -172,6 +172,11 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreatePro
 		product.Status = entities.ProductStatus(*input.Body.Status)
 	}
 
+	// Handle optional category ID
+	if input.Body.CategoryID != nil {
+		product.CategoryID = input.Body.CategoryID
+	}
+
 	// Handle optional brand ID
 	if input.Body.BrandID != nil {
 		product.BrandID = input.Body.BrandID
@@ -253,6 +258,7 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 			Height:      product.Height,
 			ImageURLs:   product.ImageURLs,
 			Status:      string(product.Status),
+			CategoryID:  product.CategoryID,
 			BrandID:     product.BrandID,
 			CreatedAt:   product.CreatedAt,
 			UpdatedAt:   product.UpdatedAt,
@@ -382,6 +388,11 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, input *dto.UpdatePro
 		product.Status = entities.ProductStatus(*input.Body.Status)
 	}
 
+	// Handle optional category ID
+	if input.Body.CategoryID != nil {
+		product.CategoryID = input.Body.CategoryID
+	}
+
 	// Handle optional brand ID
 	if input.Body.BrandID != nil {
 		product.BrandID = input.Body.BrandID
@@ -468,6 +479,7 @@ func (h *ProductHandler) mapToResponse(product *entities.Product) *dto.ProductRe
 	resp.Body.Height = product.Height
 	resp.Body.ImageURLs = product.ImageURLs
 	resp.Body.Status = string(product.Status)
+	resp.Body.CategoryID = product.CategoryID
 	resp.Body.BrandID = product.BrandID
 	resp.Body.CreatedAt = product.CreatedAt
 	resp.Body.UpdatedAt = product.UpdatedAt

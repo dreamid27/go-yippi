@@ -20,6 +20,7 @@ type CreateProductRequest struct {
 		Height      *int       `json:"height,omitempty" minimum:"0" doc:"Height in cm (optional)"`
 		ImageURLs   []string   `json:"image_urls,omitempty" doc:"Access links to product images (optional)"`
 		Status      *string    `json:"status,omitempty" enum:"draft,published,archived" doc:"Product status (optional, defaults to draft)"`
+		CategoryID  *int       `json:"category_id,omitempty" doc:"Category ID (optional)"`
 		BrandID     *uuid.UUID `json:"brand_id,omitempty" doc:"Brand ID (optional)"`
 	}
 }
@@ -39,6 +40,7 @@ type ProductResponse struct {
 		Height      int        `json:"height"`
 		ImageURLs   []string   `json:"image_urls"`
 		Status      string     `json:"status"`
+		CategoryID  *int       `json:"category_id,omitempty"`
 		BrandID     *uuid.UUID `json:"brand_id,omitempty"`
 		CreatedAt   time.Time  `json:"created_at"`
 		UpdatedAt   time.Time  `json:"updated_at"`
@@ -74,6 +76,7 @@ type ProductListItem struct {
 	Height      int        `json:"height" doc:"Height in cm"`
 	ImageURLs   []string   `json:"image_urls" doc:"Access links to product images"`
 	Status      string     `json:"status" doc:"Product status"`
+	CategoryID  *int       `json:"category_id,omitempty" doc:"Category ID"`
 	BrandID     *uuid.UUID `json:"brand_id,omitempty" doc:"Brand ID"`
 	CreatedAt   time.Time  `json:"created_at" doc:"Creation timestamp"`
 	UpdatedAt   time.Time  `json:"updated_at" doc:"Last update timestamp"`
@@ -135,6 +138,7 @@ type UpdateProductRequest struct {
 		Height      *int       `json:"height,omitempty" minimum:"0" doc:"Height in cm (optional)"`
 		ImageURLs   []string   `json:"image_urls,omitempty" doc:"Access links to product images (optional)"`
 		Status      *string    `json:"status,omitempty" enum:"draft,published,archived" doc:"Product status (optional, defaults to draft)"`
+		CategoryID  *int       `json:"category_id,omitempty" doc:"Category ID (optional)"`
 		BrandID     *uuid.UUID `json:"brand_id,omitempty" doc:"Brand ID (optional)"`
 	}
 }
