@@ -2,11 +2,21 @@ package dto
 
 import (
 	"time"
+
+	"github.com/danielgtaylor/huma/v2"
 )
+
+// UploadFileFormData represents the multipart form data for file upload
+type UploadFileFormData struct {
+	File        huma.FormFile `form:"file" required:"true" doc:"File to upload"`
+	FileName    string        `form:"file_name" doc:"Custom filename (optional, uses uploaded filename if not provided)"`
+	Bucket      string        `form:"bucket" doc:"Target bucket name (optional, uses default if not specified)"`
+	ContentType string        `form:"content_type" doc:"Custom content type (optional, auto-detected if not provided)"`
+}
 
 // UploadFileRequest represents the request to upload a file using multipart/form-data
 type UploadFileRequest struct {
-	RawBody []byte `contentType:"multipart/form-data"`
+	RawBody huma.MultipartFormFiles[UploadFileFormData]
 }
 
 // FileMetadataResponse represents the response containing file metadata
