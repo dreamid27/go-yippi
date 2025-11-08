@@ -10,6 +10,7 @@ import (
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"example.com/go-yippi/internal/domain/ports"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 )
 
 // CategoryHandler handles HTTP requests for categories
@@ -108,8 +109,12 @@ func (h *CategoryHandler) CreateCategory(ctx context.Context, input *dto.CreateC
 	}
 
 	// Handle optional parent ID
-	if input.Body.ParentID != nil {
-		category.ParentID = input.Body.ParentID
+	if input.Body.ParentID != nil && *input.Body.ParentID != "" {
+		parentUUID, err := uuid.Parse(*input.Body.ParentID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid parent_id UUID format", err)
+		}
+		category.ParentID = &parentUUID
 	}
 
 	err := h.service.CreateCategory(ctx, category)
@@ -127,7 +132,12 @@ func (h *CategoryHandler) CreateCategory(ctx context.Context, input *dto.CreateC
 }
 
 func (h *CategoryHandler) GetCategory(ctx context.Context, input *dto.GetCategoryRequest) (*dto.CategoryResponse, error) {
-	category, err := h.service.GetCategory(ctx, input.ID)
+	categoryID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid category ID UUID format", err)
+	}
+
+	category, err := h.service.GetCategory(ctx, categoryID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("Category not found")
@@ -169,10 +179,14 @@ func (h *CategoryHandler) ListCategories(ctx context.Context, input *struct{}) (
 }
 
 func (h *CategoryHandler) ListCategoriesByParent(ctx context.Context, input *dto.ListCategoriesByParentRequest) (*dto.ListCategoriesResponse, error) {
-	// Convert query param to pointer: -1 (not provided) -> nil, >= 0 -> &value
-	var parentID *int
-	if input.ParentID >= 0 {
-		parentID = &input.ParentID
+	// Convert query param to pointer: empty string -> nil (root categories), UUID string -> &uuid
+	var parentID *uuid.UUID
+	if input.ParentID != "" {
+		parsedID, err := uuid.Parse(input.ParentID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid parent_id UUID format", err)
+		}
+		parentID = &parsedID
 	}
 
 	categories, err := h.service.ListCategoriesByParentID(ctx, parentID)
@@ -193,17 +207,26 @@ func (h *CategoryHandler) ListCategoriesByParent(ctx context.Context, input *dto
 }
 
 func (h *CategoryHandler) UpdateCategory(ctx context.Context, input *dto.UpdateCategoryRequest) (*dto.CategoryResponse, error) {
+	categoryID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid category ID UUID format", err)
+	}
+
 	category := &entities.Category{
-		ID:   input.ID,
+		ID:   categoryID,
 		Name: input.Body.Name,
 	}
 
 	// Handle optional parent ID
-	if input.Body.ParentID != nil {
-		category.ParentID = input.Body.ParentID
+	if input.Body.ParentID != nil && *input.Body.ParentID != "" {
+		parentUUID, err := uuid.Parse(*input.Body.ParentID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid parent_id UUID format", err)
+		}
+		category.ParentID = &parentUUID
 	}
 
-	err := h.service.UpdateCategory(ctx, category)
+	err = h.service.UpdateCategory(ctx, category)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrInvalidInput) {
 			return nil, huma.Error400BadRequest("Invalid input", err)
@@ -221,7 +244,12 @@ func (h *CategoryHandler) UpdateCategory(ctx context.Context, input *dto.UpdateC
 }
 
 func (h *CategoryHandler) DeleteCategory(ctx context.Context, input *dto.DeleteCategoryRequest) (*struct{}, error) {
-	err := h.service.DeleteCategory(ctx, input.ID)
+	categoryID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid category ID UUID format", err)
+	}
+
+	err = h.service.DeleteCategory(ctx, categoryID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrInvalidInput) {
 			return nil, huma.Error400BadRequest("Invalid input", err)
@@ -238,9 +266,15 @@ func (h *CategoryHandler) DeleteCategory(ctx context.Context, input *dto.DeleteC
 // mapToResponse maps domain entity to response DTO
 func (h *CategoryHandler) mapToResponse(category *entities.Category) *dto.CategoryResponse {
 	response := &dto.CategoryResponse{}
-	response.Body.ID = category.ID
+	response.Body.ID = category.ID.String()
 	response.Body.Name = category.Name
-	response.Body.ParentID = category.ParentID
+
+	// Convert UUID pointer to string pointer
+	if category.ParentID != nil {
+		parentIDStr := category.ParentID.String()
+		response.Body.ParentID = &parentIDStr
+	}
+
 	response.Body.CreatedAt = category.CreatedAt
 	response.Body.UpdatedAt = category.UpdatedAt
 	return response
@@ -248,11 +282,18 @@ func (h *CategoryHandler) mapToResponse(category *entities.Category) *dto.Catego
 
 // mapToListItem maps domain entity to list item DTO
 func (h *CategoryHandler) mapToListItem(category *entities.Category) dto.CategoryListItem {
-	return dto.CategoryListItem{
-		ID:        category.ID,
+	listItem := dto.CategoryListItem{
+		ID:        category.ID.String(),
 		Name:      category.Name,
-		ParentID:  category.ParentID,
 		CreatedAt: category.CreatedAt,
 		UpdatedAt: category.UpdatedAt,
 	}
+
+	// Convert UUID pointer to string pointer
+	if category.ParentID != nil {
+		parentIDStr := category.ParentID.String()
+		listItem.ParentID = &parentIDStr
+	}
+
+	return listItem
 }

@@ -2,8 +2,6 @@ package dto
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // CreateProductRequest defines the request body for creating a product
@@ -20,8 +18,8 @@ type CreateProductRequest struct {
 		Height      *int       `json:"height,omitempty" minimum:"0" doc:"Height in cm (optional)"`
 		ImageURLs   []string   `json:"image_urls,omitempty" doc:"Access links to product images (optional)"`
 		Status      *string    `json:"status,omitempty" enum:"draft,published,archived" doc:"Product status (optional, defaults to draft)"`
-		CategoryID  *int       `json:"category_id,omitempty" doc:"Category ID (optional)"`
-		BrandID     *uuid.UUID `json:"brand_id,omitempty" doc:"Brand ID (optional)"`
+		CategoryID  *string    `json:"category_id,omitempty" doc:"Category ID (optional UUID)"`
+		BrandID     *string    `json:"brand_id,omitempty" doc:"Brand ID (optional UUID)"`
 	}
 }
 
@@ -40,8 +38,8 @@ type ProductResponse struct {
 		Height      int        `json:"height"`
 		ImageURLs   []string   `json:"image_urls"`
 		Status      string     `json:"status"`
-		CategoryID  *int       `json:"category_id,omitempty"`
-		BrandID     *uuid.UUID `json:"brand_id,omitempty"`
+		CategoryID  *string    `json:"category_id,omitempty"`
+		BrandID     *string    `json:"brand_id,omitempty"`
 		CreatedAt   time.Time  `json:"created_at"`
 		UpdatedAt   time.Time  `json:"updated_at"`
 	}
@@ -76,30 +74,30 @@ type ProductListItem struct {
 	Height      int        `json:"height" doc:"Height in cm"`
 	ImageURLs   []string   `json:"image_urls" doc:"Access links to product images"`
 	Status      string     `json:"status" doc:"Product status"`
-	CategoryID  *int       `json:"category_id,omitempty" doc:"Category ID"`
-	BrandID     *uuid.UUID `json:"brand_id,omitempty" doc:"Brand ID"`
+	CategoryID  *string    `json:"category_id,omitempty" doc:"Category ID (UUID)"`
+	BrandID     *string    `json:"brand_id,omitempty" doc:"Brand ID (UUID)"`
 	CreatedAt   time.Time  `json:"created_at" doc:"Creation timestamp"`
 	UpdatedAt   time.Time  `json:"updated_at" doc:"Last update timestamp"`
 }
 
 // QueryProductsRequest defines the request for querying products with filters, sorting, and pagination
 type QueryProductsRequest struct {
-	// Filters - array of filter conditions (parsed by custom Resolver)
+	// Filters - array of filter conditions
 	// Usage: ?filter[0][field]=status&filter[0][operator]=eq&filter[0][value]=published
-	// Category filtering: ?filter[0][field]=category_id&filter[0][operator]=in&filter[0][value]=[1,2,5]
+	// Example: ?filter[0][field]=price&filter[0][operator]=gte&filter[0][value]=100
+	// Category filtering: ?filter[0][field]=category_id&filter[0][operator]=in&filter[0][value]=[uuid1,uuid2]
 	// Note: Category filtering automatically includes all subcategories
-	// Note: This is populated by the Resolve() method and hidden from OpenAPI schema
-	Filters []FilterDTO
+	Filters []FilterDTO `query:"filter" doc:"Array of filter conditions. Use filter[i][field], filter[i][operator], filter[i][value] format. Operators: eq, ne, gt, gte, lt, lte, like, ilike, in, not_in, is_null, not_null, starts, ends"`
 
-	// Sort - array of sort parameters (parsed by custom Resolver)
+	// Sort - array of sort parameters
 	// Usage: ?sort[0][field]=price&sort[0][order]=desc
-	// Note: This is populated by the Resolve() method and hidden from OpenAPI schema
-	Sort []SortDTO
+	// Example: ?sort[0][field]=created_at&sort[0][order]=asc&sort[1][field]=name&sort[1][order]=asc
+	Sort []SortDTO `query:"sort" doc:"Array of sort parameters. Use sort[i][field] and sort[i][order] format. Order values: asc, desc"`
 
 	// Pagination parameters
 	Cursor       string `query:"cursor" doc:"Pagination cursor from previous response"`
 	Limit        int    `query:"limit" default:"20" doc:"Items per page (default: 20, max: 100)"`
-	Direction    string `query:"direction" default:"forward" doc:"Pagination direction: forward or backward (default: forward)"`
+	Direction    string `query:"direction" default:"forward" enum:"forward,backward" doc:"Pagination direction (default: forward)"`
 	IncludeTotal bool   `query:"include_total" default:"false" doc:"Include total count in response (default: false, may be expensive)"`
 }
 
@@ -138,8 +136,8 @@ type UpdateProductRequest struct {
 		Height      *int       `json:"height,omitempty" minimum:"0" doc:"Height in cm (optional)"`
 		ImageURLs   []string   `json:"image_urls,omitempty" doc:"Access links to product images (optional)"`
 		Status      *string    `json:"status,omitempty" enum:"draft,published,archived" doc:"Product status (optional, defaults to draft)"`
-		CategoryID  *int       `json:"category_id,omitempty" doc:"Category ID (optional)"`
-		BrandID     *uuid.UUID `json:"brand_id,omitempty" doc:"Brand ID (optional)"`
+		CategoryID  *string    `json:"category_id,omitempty" doc:"Category ID (optional UUID)"`
+		BrandID     *string    `json:"brand_id,omitempty" doc:"Brand ID (optional UUID)"`
 	}
 }
 

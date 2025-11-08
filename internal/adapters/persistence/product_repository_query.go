@@ -317,38 +317,70 @@ func (r *ProductRepositoryImpl) buildStatusFilter(filter entities.Filter) (predi
 	}
 }
 
-// buildCategoryFilter builds predicates for category_id field
+// buildCategoryFilter builds predicates for category_id field (UUID)
 func (r *ProductRepositoryImpl) buildCategoryFilter(filter entities.Filter) (predicate.Product, error) {
 	switch filter.Operator {
 	case entities.OpEqual:
-		val, ok := filter.Value.(float64)
+		val, ok := filter.Value.(string)
 		if !ok {
-			intVal, ok := filter.Value.(int)
-			if !ok {
-				return nil, fmt.Errorf("invalid value type for category_id filter: %T", filter.Value)
-			}
-			return product.HasCategoryWith(category.IDEQ(intVal)), nil
+			return nil, fmt.Errorf("invalid value type for category_id filter: %T", filter.Value)
 		}
-		return product.HasCategoryWith(category.IDEQ(int(val))), nil
+		categoryID, err := uuid.Parse(val)
+		if err != nil {
+			return nil, fmt.Errorf("invalid UUID for category_id: %w", err)
+		}
+		return product.HasCategoryWith(category.IDEQ(categoryID)), nil
+	case entities.OpNotEqual:
+		val, ok := filter.Value.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid value type for category_id filter: %T", filter.Value)
+		}
+		categoryID, err := uuid.Parse(val)
+		if err != nil {
+			return nil, fmt.Errorf("invalid UUID for category_id: %w", err)
+		}
+		return product.HasCategoryWith(category.IDNEQ(categoryID)), nil
 	case entities.OpIn:
 		vals, ok := filter.Value.([]interface{})
 		if !ok {
-			return nil, fmt.Errorf("invalid value type for category_id in filter: %T", filter.Value)
-		}
-		categoryIDs := make([]int, len(vals))
-		for i, v := range vals {
-			switch idVal := v.(type) {
-			case float64:
-				categoryIDs[i] = int(idVal)
-			case int:
-				categoryIDs[i] = idVal
-			default:
-				return nil, fmt.Errorf("invalid value in category_id array: %T", v)
+			// Try comma-separated string
+			val, ok := filter.Value.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid value type for category_id in filter: %T", filter.Value)
 			}
+			strVals := strings.Split(val, ",")
+			categoryIDs := make([]uuid.UUID, 0, len(strVals))
+			for _, s := range strVals {
+				categoryID, err := uuid.Parse(strings.TrimSpace(s))
+				if err != nil {
+					// Skip invalid UUIDs
+					continue
+				}
+				categoryIDs = append(categoryIDs, categoryID)
+			}
+			if len(categoryIDs) == 0 {
+				return nil, fmt.Errorf("no valid UUIDs found in category_ids filter")
+			}
+			return product.HasCategoryWith(category.IDIn(categoryIDs...)), nil
+		}
+		categoryIDs := make([]uuid.UUID, 0, len(vals))
+		for _, v := range vals {
+			str, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid value in array: %T", v)
+			}
+			categoryID, err := uuid.Parse(str)
+			if err != nil {
+				continue // Skip invalid UUIDs
+			}
+			categoryIDs = append(categoryIDs, categoryID)
+		}
+		if len(categoryIDs) == 0 {
+			return nil, fmt.Errorf("no valid UUIDs found in category_ids filter")
 		}
 		return product.HasCategoryWith(category.IDIn(categoryIDs...)), nil
 	default:
-		return nil, fmt.Errorf("unsupported operator %s for category_id field (only 'eq' and 'in' are supported)", filter.Operator)
+		return nil, fmt.Errorf("unsupported operator %s for category_id field", filter.Operator)
 	}
 }
 

@@ -1,12 +1,16 @@
 package entities
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // Category represents a product category domain entity
 type Category struct {
-	ID        int
+	ID        uuid.UUID
 	Name      string
-	ParentID  *int // nullable for root categories
+	ParentID  *uuid.UUID // nullable for root categories
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

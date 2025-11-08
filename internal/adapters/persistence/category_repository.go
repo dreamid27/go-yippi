@@ -7,6 +7,7 @@ import (
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/category"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
+	"github.com/google/uuid"
 )
 
 // CategoryRepositoryImpl implements the CategoryRepository interface using Ent
@@ -42,7 +43,7 @@ func (r *CategoryRepositoryImpl) Create(ctx context.Context, cat *entities.Categ
 	return nil
 }
 
-func (r *CategoryRepositoryImpl) GetByID(ctx context.Context, id int) (*entities.Category, error) {
+func (r *CategoryRepositoryImpl) GetByID(ctx context.Context, id uuid.UUID) (*entities.Category, error) {
 	found, err := r.client.Category.Get(ctx, id)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -83,7 +84,7 @@ func (r *CategoryRepositoryImpl) List(ctx context.Context) ([]*entities.Category
 	return categories, nil
 }
 
-func (r *CategoryRepositoryImpl) ListByParentID(ctx context.Context, parentID *int) ([]*entities.Category, error) {
+func (r *CategoryRepositoryImpl) ListByParentID(ctx context.Context, parentID *uuid.UUID) ([]*entities.Category, error) {
 	query := r.client.Category.Query()
 
 	if parentID == nil {
@@ -132,7 +133,7 @@ func (r *CategoryRepositoryImpl) Update(ctx context.Context, cat *entities.Categ
 	return nil
 }
 
-func (r *CategoryRepositoryImpl) Delete(ctx context.Context, id int) error {
+func (r *CategoryRepositoryImpl) Delete(ctx context.Context, id uuid.UUID) error {
 	err := r.client.Category.DeleteOneID(id).Exec(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -152,21 +153,21 @@ func (r *CategoryRepositoryImpl) toEntity(c *ent.Category) *entities.Category {
 		UpdatedAt: c.UpdatedAt,
 	}
 
-	// Set parent ID if it exists
-	if parentID, exists := c.QueryParent().OnlyID(context.Background()); exists == nil {
-		cat.ParentID = &parentID
+	// Set parent ID if it exists (c.ParentID is already *uuid.UUID from Ent)
+	if c.ParentID != nil {
+		cat.ParentID = c.ParentID
 	}
 
 	return cat
 }
 
 // GetDescendantIDs returns all descendant category IDs for the given category IDs (including the given IDs)
-func (r *CategoryRepositoryImpl) GetDescendantIDs(ctx context.Context, categoryIDs []int) ([]int, error) {
+func (r *CategoryRepositoryImpl) GetDescendantIDs(ctx context.Context, categoryIDs []uuid.UUID) ([]uuid.UUID, error) {
 	if len(categoryIDs) == 0 {
-		return []int{}, nil
+		return []uuid.UUID{}, nil
 	}
 
-	result := make(map[int]bool)
+	result := make(map[uuid.UUID]bool)
 	for _, id := range categoryIDs {
 		result[id] = true // Include the parent category itself
 	}
@@ -174,7 +175,7 @@ func (r *CategoryRepositoryImpl) GetDescendantIDs(ctx context.Context, categoryI
 	// Recursively find all descendants
 	toProcess := categoryIDs
 	for len(toProcess) > 0 {
-		var nextBatch []int
+		var nextBatch []uuid.UUID
 		for _, parentID := range toProcess {
 			// Find children of this parent
 			children, err := r.ListByParentID(ctx, &parentID)
@@ -193,7 +194,7 @@ func (r *CategoryRepositoryImpl) GetDescendantIDs(ctx context.Context, categoryI
 	}
 
 	// Convert map to slice
-	ids := make([]int, 0, len(result))
+	ids := make([]uuid.UUID, 0, len(result))
 	for id := range result {
 		ids = append(ids, id)
 	}

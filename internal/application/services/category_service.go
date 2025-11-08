@@ -7,6 +7,7 @@ import (
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"example.com/go-yippi/internal/domain/ports"
+	"github.com/google/uuid"
 )
 
 // CategoryService handles business logic for categories
@@ -35,7 +36,7 @@ func (s *CategoryService) CreateCategory(ctx context.Context, category *entities
 	return s.repo.Create(ctx, category)
 }
 
-func (s *CategoryService) GetCategory(ctx context.Context, id int) (*entities.Category, error) {
+func (s *CategoryService) GetCategory(ctx context.Context, id uuid.UUID) (*entities.Category, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
@@ -50,7 +51,7 @@ func (s *CategoryService) ListCategories(ctx context.Context) ([]*entities.Categ
 	return s.repo.List(ctx)
 }
 
-func (s *CategoryService) ListCategoriesByParentID(ctx context.Context, parentID *int) ([]*entities.Category, error) {
+func (s *CategoryService) ListCategoriesByParentID(ctx context.Context, parentID *uuid.UUID) ([]*entities.Category, error) {
 	// Validate parent exists if provided
 	if parentID != nil {
 		_, err := s.repo.GetByID(ctx, *parentID)
@@ -82,7 +83,7 @@ func (s *CategoryService) UpdateCategory(ctx context.Context, category *entities
 	return s.repo.Update(ctx, category)
 }
 
-func (s *CategoryService) DeleteCategory(ctx context.Context, id int) error {
+func (s *CategoryService) DeleteCategory(ctx context.Context, id uuid.UUID) error {
 	// Check if category exists
 	_, err := s.repo.GetByID(ctx, id)
 	if err != nil {

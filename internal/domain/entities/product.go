@@ -31,7 +31,7 @@ type Product struct {
 	Height      int           // in cm
 	ImageURLs   []string      // access links to product images
 	Status      ProductStatus
-	CategoryID  *int          // optional category reference
+	CategoryID  *uuid.UUID    // optional category reference
 	BrandID     *uuid.UUID    // optional brand association
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

@@ -2,11 +2,13 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"example.com/go-yippi/internal/domain/ports"
+	"github.com/google/uuid"
 )
 
 // ProductService handles business logic for products
@@ -214,35 +216,41 @@ func (s *ProductService) QueryProducts(ctx context.Context, params *entities.Que
 		}
 	}
 
+	fmt.Println(params.Filters)
+
 	// Expand category_id filters to include descendants
 	for i, filter := range params.Filters {
 		if filter.Field == "category_id" && (filter.Operator == entities.OpIn || filter.Operator == entities.OpEqual) {
 			// Extract category IDs from filter value
-			var categoryIDs []int
+			var categoryIDs []uuid.UUID
 
 			if filter.Operator == entities.OpEqual {
-				// Single ID: convert to int
+				// Single ID: parse UUID string
 				switch v := filter.Value.(type) {
-				case float64:
-					categoryIDs = []int{int(v)}
-				case int:
-					categoryIDs = []int{v}
+				case string:
+					parsedID, err := uuid.Parse(v)
+					if err != nil {
+						return nil, domainErrors.NewValidationError("category_id", "Invalid UUID format")
+					}
+					categoryIDs = []uuid.UUID{parsedID}
 				default:
-					return nil, domainErrors.NewValidationError("category_id", "Invalid category_id value type")
+					return nil, domainErrors.NewValidationError("category_id", "Invalid category_id value type (expected string UUID)")
 				}
 			} else if filter.Operator == entities.OpIn {
-				// Multiple IDs: convert array to int slice
+				// Multiple IDs: convert array to UUID slice
 				switch v := filter.Value.(type) {
 				case []interface{}:
-					categoryIDs = make([]int, 0, len(v))
+					categoryIDs = make([]uuid.UUID, 0, len(v))
 					for _, id := range v {
 						switch idVal := id.(type) {
-						case float64:
-							categoryIDs = append(categoryIDs, int(idVal))
-						case int:
-							categoryIDs = append(categoryIDs, idVal)
+						case string:
+							parsedID, err := uuid.Parse(idVal)
+							if err != nil {
+								return nil, domainErrors.NewValidationError("category_id", "Invalid UUID format in array")
+							}
+							categoryIDs = append(categoryIDs, parsedID)
 						default:
-							return nil, domainErrors.NewValidationError("category_id", "Invalid category_id array value type")
+							return nil, domainErrors.NewValidationError("category_id", "Invalid category_id array value type (expected string UUID)")
 						}
 					}
 				default:
@@ -257,15 +265,15 @@ func (s *ProductService) QueryProducts(ctx context.Context, params *entities.Que
 					return nil, domainErrors.NewValidationError("category_id", "Failed to expand category IDs")
 				}
 
-				// Update the filter with expanded IDs
+				// Update the filter with expanded IDs (convert UUID back to string)
 				if len(expandedIDs) == 1 {
-					params.Filters[i].Value = expandedIDs[0]
+					params.Filters[i].Value = expandedIDs[0].String()
 					params.Filters[i].Operator = entities.OpEqual
 				} else {
 					// Convert to []interface{} for compatibility
 					expandedValues := make([]interface{}, len(expandedIDs))
 					for j, id := range expandedIDs {
-						expandedValues[j] = id
+						expandedValues[j] = id.String()
 					}
 					params.Filters[i].Value = expandedValues
 					params.Filters[i].Operator = entities.OpIn
@@ -311,7 +319,8 @@ func (s *ProductService) isValidFilterField(field string) bool {
 		"id": true, "sku": true, "slug": true, "name": true,
 		"description": true, "price": true, "weight": true,
 		"length": true, "width": true, "height": true,
-		"status": true, "created_at": true, "updated_at": true,
+		"status": true, "category_id": true, "brand_id": true,
+		"created_at": true, "updated_at": true,
 	}
 	return validFields[field]
 }
@@ -337,6 +346,9 @@ func (s *ProductService) isValidOperatorForField(field string, op entities.Filte
 	}
 	timeFields := map[string]bool{
 		"created_at": true, "updated_at": true,
+	}
+	uuidFields := map[string]bool{
+		"category_id": true, "brand_id": true,
 	}
 
 	// Universal operators
@@ -369,6 +381,15 @@ func (s *ProductService) isValidOperatorForField(field string, op entities.Filte
 		switch op {
 		case entities.OpEqual, entities.OpNotEqual, entities.OpGreaterThan,
 			entities.OpGreaterThanOrEqual, entities.OpLessThan, entities.OpLessThanOrEqual:
+			return true
+		}
+		return false
+	}
+
+	// UUID field operators (category_id, brand_id)
+	if uuidFields[field] {
+		switch op {
+		case entities.OpEqual, entities.OpNotEqual, entities.OpIn, entities.OpNotIn:
 			return true
 		}
 		return false

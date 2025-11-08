@@ -5,17 +5,17 @@ import "time"
 // CreateCategoryRequest defines the request body for creating a category
 type CreateCategoryRequest struct {
 	Body struct {
-		Name     string `json:"name" minLength:"1" doc:"Category name (must be unique)"`
-		ParentID *int   `json:"parent_id,omitempty" doc:"Parent category ID (optional, for subcategories)"`
+		Name     string  `json:"name" minLength:"1" doc:"Category name (must be unique)"`
+		ParentID *string `json:"parent_id,omitempty" doc:"Parent category ID (optional UUID, for subcategories)"`
 	}
 }
 
 // CategoryResponse defines the response for category operations
 type CategoryResponse struct {
 	Body struct {
-		ID        int       `json:"id" doc:"Category ID"`
+		ID        string    `json:"id" doc:"Category ID (UUID)"`
 		Name      string    `json:"name" doc:"Category name"`
-		ParentID  *int      `json:"parent_id,omitempty" doc:"Parent category ID"`
+		ParentID  *string   `json:"parent_id,omitempty" doc:"Parent category ID (UUID)"`
 		CreatedAt time.Time `json:"created_at" doc:"Creation timestamp"`
 		UpdatedAt time.Time `json:"updated_at" doc:"Last update timestamp"`
 	}
@@ -23,7 +23,7 @@ type CategoryResponse struct {
 
 // GetCategoryRequest defines the request for getting a single category
 type GetCategoryRequest struct {
-	ID int `path:"id" doc:"Category ID"`
+	ID string `path:"id" doc:"Category ID (UUID)"`
 }
 
 // GetCategoryByNameRequest defines the request for getting a category by name
@@ -33,9 +33,9 @@ type GetCategoryByNameRequest struct {
 
 // CategoryListItem represents a category in a list response
 type CategoryListItem struct {
-	ID        int       `json:"id" doc:"Category ID"`
+	ID        string    `json:"id" doc:"Category ID (UUID)"`
 	Name      string    `json:"name" doc:"Category name"`
-	ParentID  *int      `json:"parent_id,omitempty" doc:"Parent category ID"`
+	ParentID  *string   `json:"parent_id,omitempty" doc:"Parent category ID (UUID)"`
 	CreatedAt time.Time `json:"created_at" doc:"Creation timestamp"`
 	UpdatedAt time.Time `json:"updated_at" doc:"Last update timestamp"`
 }
@@ -49,19 +49,19 @@ type ListCategoriesResponse struct {
 
 // ListCategoriesByParentRequest defines the request for listing categories by parent
 type ListCategoriesByParentRequest struct {
-	ParentID int `query:"parent_id" default:"-1" doc:"Parent category ID (0 for root categories, -1 or omit for all categories)"`
+	ParentID string `query:"parent_id" default:"" doc:"Parent category ID (UUID for specific parent, empty for root categories)"`
 }
 
 // UpdateCategoryRequest defines the request for updating a category
 type UpdateCategoryRequest struct {
-	ID   int `path:"id" doc:"Category ID"`
+	ID   string `path:"id" doc:"Category ID (UUID)"`
 	Body struct {
-		Name     string `json:"name" minLength:"1" doc:"Category name (must be unique)"`
-		ParentID *int   `json:"parent_id,omitempty" doc:"Parent category ID (optional)"`
+		Name     string  `json:"name" minLength:"1" doc:"Category name (must be unique)"`
+		ParentID *string `json:"parent_id,omitempty" doc:"Parent category ID (optional UUID)"`
 	}
 }
 
 // DeleteCategoryRequest defines the request for deleting a category
 type DeleteCategoryRequest struct {
-	ID int `path:"id" doc:"Category ID"`
+	ID string `path:"id" doc:"Category ID (UUID)"`
 }

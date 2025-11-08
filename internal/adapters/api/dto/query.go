@@ -2,15 +2,15 @@ package dto
 
 // FilterDTO represents a filter condition in the API layer
 type FilterDTO struct {
-	Field    string      `json:"field" doc:"Field name to filter on"`
-	Operator string      `json:"operator" doc:"Comparison operator (eq, ne, gt, gte, lt, lte, like, ilike, in, not_in, is_null, not_null, starts, ends)"`
-	Value    interface{} `json:"value,omitempty" doc:"Value to compare against (type depends on field and operator)"`
+	Field    string      `json:"field" doc:"Field name to filter on (e.g., status, price, sku, name, category_id, brand_id)"`
+	Operator string      `json:"operator" enum:"eq,ne,gt,gte,lt,lte,like,ilike,in,not_in,is_null,not_null,starts,ends" doc:"Comparison operator"`
+	Value    interface{} `json:"value,omitempty" doc:"Value to compare against (type depends on field and operator). For 'in' and 'not_in' operators, use array format: [value1,value2]"`
 }
 
 // SortDTO represents a sort parameter in the API layer
 type SortDTO struct {
-	Field string `json:"field" doc:"Field name to sort by"`
-	Order string `json:"order" doc:"Sort order (asc or desc)"`
+	Field string `json:"field" doc:"Field name to sort by (e.g., id, sku, name, price, created_at, updated_at)"`
+	Order string `json:"order" enum:"asc,desc" doc:"Sort order: ascending or descending"`
 }
 
 // PageInfoDTO represents pagination metadata in the response

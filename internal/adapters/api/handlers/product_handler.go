@@ -10,6 +10,7 @@ import (
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"example.com/go-yippi/internal/domain/ports"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 )
 
 // ProductHandler handles HTTP requests for products
@@ -173,13 +174,21 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreatePro
 	}
 
 	// Handle optional category ID
-	if input.Body.CategoryID != nil {
-		product.CategoryID = input.Body.CategoryID
+	if input.Body.CategoryID != nil && *input.Body.CategoryID != "" {
+		categoryUUID, err := uuid.Parse(*input.Body.CategoryID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid category_id UUID format", err)
+		}
+		product.CategoryID = &categoryUUID
 	}
 
 	// Handle optional brand ID
-	if input.Body.BrandID != nil {
-		product.BrandID = input.Body.BrandID
+	if input.Body.BrandID != nil && *input.Body.BrandID != "" {
+		brandUUID, err := uuid.Parse(*input.Body.BrandID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid brand_id UUID format", err)
+		}
+		product.BrandID = &brandUUID
 	}
 
 	err := h.service.CreateProduct(ctx, product)
@@ -245,7 +254,7 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 	resp.Body.Data = make([]dto.ProductListItem, len(result.Products))
 
 	for i, product := range result.Products {
-		resp.Body.Data[i] = dto.ProductListItem{
+		listItem := dto.ProductListItem{
 			ID:          product.ID,
 			SKU:         product.SKU,
 			Slug:        product.Slug,
@@ -258,11 +267,21 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 			Height:      product.Height,
 			ImageURLs:   product.ImageURLs,
 			Status:      string(product.Status),
-			CategoryID:  product.CategoryID,
-			BrandID:     product.BrandID,
 			CreatedAt:   product.CreatedAt,
 			UpdatedAt:   product.UpdatedAt,
 		}
+
+		// Convert UUID pointers to string pointers
+		if product.CategoryID != nil {
+			categoryIDStr := product.CategoryID.String()
+			listItem.CategoryID = &categoryIDStr
+		}
+		if product.BrandID != nil {
+			brandIDStr := product.BrandID.String()
+			listItem.BrandID = &brandIDStr
+		}
+
+		resp.Body.Data[i] = listItem
 	}
 
 	// Convert page info
@@ -389,13 +408,21 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, input *dto.UpdatePro
 	}
 
 	// Handle optional category ID
-	if input.Body.CategoryID != nil {
-		product.CategoryID = input.Body.CategoryID
+	if input.Body.CategoryID != nil && *input.Body.CategoryID != "" {
+		categoryUUID, err := uuid.Parse(*input.Body.CategoryID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid category_id UUID format", err)
+		}
+		product.CategoryID = &categoryUUID
 	}
 
 	// Handle optional brand ID
-	if input.Body.BrandID != nil {
-		product.BrandID = input.Body.BrandID
+	if input.Body.BrandID != nil && *input.Body.BrandID != "" {
+		brandUUID, err := uuid.Parse(*input.Body.BrandID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid brand_id UUID format", err)
+		}
+		product.BrandID = &brandUUID
 	}
 
 	err := h.service.UpdateProduct(ctx, product)
@@ -479,8 +506,16 @@ func (h *ProductHandler) mapToResponse(product *entities.Product) *dto.ProductRe
 	resp.Body.Height = product.Height
 	resp.Body.ImageURLs = product.ImageURLs
 	resp.Body.Status = string(product.Status)
-	resp.Body.CategoryID = product.CategoryID
-	resp.Body.BrandID = product.BrandID
+
+	// Convert UUID pointers to string pointers
+	if product.CategoryID != nil {
+		categoryIDStr := product.CategoryID.String()
+		resp.Body.CategoryID = &categoryIDStr
+	}
+	if product.BrandID != nil {
+		brandIDStr := product.BrandID.String()
+		resp.Body.BrandID = &brandIDStr
+	}
 	resp.Body.CreatedAt = product.CreatedAt
 	resp.Body.UpdatedAt = product.UpdatedAt
 	return resp

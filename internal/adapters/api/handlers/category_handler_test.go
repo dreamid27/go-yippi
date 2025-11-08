@@ -10,6 +10,7 @@ import (
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func (m *MockCategoryService) CreateCategory(ctx context.Context, category *enti
 	return args.Error(0)
 }
 
-func (m *MockCategoryService) GetCategory(ctx context.Context, id int) (*entities.Category, error) {
+func (m *MockCategoryService) GetCategory(ctx context.Context, id uuid.UUID) (*entities.Category, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -49,7 +50,7 @@ func (m *MockCategoryService) ListCategories(ctx context.Context) ([]*entities.C
 	return args.Get(0).([]*entities.Category), args.Error(1)
 }
 
-func (m *MockCategoryService) ListCategoriesByParentID(ctx context.Context, parentID *int) ([]*entities.Category, error) {
+func (m *MockCategoryService) ListCategoriesByParentID(ctx context.Context, parentID *uuid.UUID) ([]*entities.Category, error) {
 	args := m.Called(ctx, parentID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -62,7 +63,7 @@ func (m *MockCategoryService) UpdateCategory(ctx context.Context, category *enti
 	return args.Error(0)
 }
 
-func (m *MockCategoryService) DeleteCategory(ctx context.Context, id int) error {
+func (m *MockCategoryService) DeleteCategory(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
@@ -77,12 +78,14 @@ func TestCreateCategory_Success(t *testing.T) {
 	input := &dto.CreateCategoryRequest{}
 	input.Body.Name = "Electronics"
 
+	testID := uuid.New()
+
 	mockService.On("CreateCategory", ctx, mock.MatchedBy(func(c *entities.Category) bool {
 		return c.Name == "Electronics" && c.ParentID == nil
 	})).Return(nil).Run(func(args mock.Arguments) {
 		// Simulate ID assignment by service/repository
 		cat := args.Get(1).(*entities.Category)
-		cat.ID = 1
+		cat.ID = testID
 		cat.CreatedAt = time.Now()
 		cat.UpdatedAt = time.Now()
 	})
@@ -93,7 +96,7 @@ func TestCreateCategory_Success(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, 1, response.Body.ID)
+	assert.Equal(t, testID.String(), response.Body.ID)
 	assert.Equal(t, "Electronics", response.Body.Name)
 	assert.Nil(t, response.Body.ParentID)
 	mockService.AssertExpectations(t)
@@ -106,16 +109,19 @@ func TestCreateCategory_WithParent(t *testing.T) {
 	handler := NewCategoryHandler(mockService)
 	ctx := context.Background()
 
-	parentID := 1
+	parentUUID := uuid.New()
+	parentIDStr := parentUUID.String()
+	testID := uuid.New()
+
 	input := &dto.CreateCategoryRequest{}
 	input.Body.Name = "Laptops"
-	input.Body.ParentID = &parentID
+	input.Body.ParentID = &parentIDStr
 
 	mockService.On("CreateCategory", ctx, mock.MatchedBy(func(c *entities.Category) bool {
-		return c.Name == "Laptops" && c.ParentID != nil && *c.ParentID == 1
+		return c.Name == "Laptops" && c.ParentID != nil && *c.ParentID == parentUUID
 	})).Return(nil).Run(func(args mock.Arguments) {
 		cat := args.Get(1).(*entities.Category)
-		cat.ID = 2
+		cat.ID = testID
 		cat.CreatedAt = time.Now()
 		cat.UpdatedAt = time.Now()
 	})
@@ -126,9 +132,9 @@ func TestCreateCategory_WithParent(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, 2, response.Body.ID)
+	assert.Equal(t, testID.String(), response.Body.ID)
 	assert.Equal(t, "Laptops", response.Body.Name)
-	assert.Equal(t, 1, *response.Body.ParentID)
+	assert.Equal(t, parentIDStr, *response.Body.ParentID)
 	mockService.AssertExpectations(t)
 }
 
@@ -189,15 +195,16 @@ func TestGetCategory_Success(t *testing.T) {
 	handler := NewCategoryHandler(mockService)
 	ctx := context.Background()
 
-	input := &dto.GetCategoryRequest{ID: 1}
+	testID := uuid.New()
+	input := &dto.GetCategoryRequest{ID: testID.String()}
 	category := &entities.Category{
-		ID:        1,
+		ID:        testID,
 		Name:      "Electronics",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	mockService.On("GetCategory", ctx, 1).Return(category, nil)
+	mockService.On("GetCategory", ctx, testID).Return(category, nil)
 
 	// Act
 	response, err := handler.GetCategory(ctx, input)
@@ -205,7 +212,7 @@ func TestGetCategory_Success(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, 1, response.Body.ID)
+	assert.Equal(t, testID.String(), response.Body.ID)
 	assert.Equal(t, "Electronics", response.Body.Name)
 	mockService.AssertExpectations(t)
 }
@@ -217,10 +224,11 @@ func TestGetCategory_NotFound(t *testing.T) {
 	handler := NewCategoryHandler(mockService)
 	ctx := context.Background()
 
-	input := &dto.GetCategoryRequest{ID: 999}
-	notFoundErr := domainErrors.NewNotFoundError("Category", 999)
+	testID := uuid.New()
+	input := &dto.GetCategoryRequest{ID: testID.String()}
+	notFoundErr := domainErrors.NewNotFoundError("Category", testID)
 
-	mockService.On("GetCategory", ctx, 999).Return(nil, notFoundErr)
+	mockService.On("GetCategory", ctx, testID).Return(nil, notFoundErr)
 
 	// Act
 	response, err := handler.GetCategory(ctx, input)
@@ -242,8 +250,8 @@ func TestListCategories_Success(t *testing.T) {
 	ctx := context.Background()
 
 	categories := []*entities.Category{
-		{ID: 1, Name: "Electronics", CreatedAt: time.Now(), UpdatedAt: time.Now()},
-		{ID: 2, Name: "Books", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: uuid.New(), Name: "Electronics", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: uuid.New(), Name: "Books", CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}
 
 	mockService.On("ListCategories", ctx).Return(categories, nil)
@@ -267,11 +275,12 @@ func TestUpdateCategory_Success(t *testing.T) {
 	handler := NewCategoryHandler(mockService)
 	ctx := context.Background()
 
-	input := &dto.UpdateCategoryRequest{ID: 1}
+	testID := uuid.New()
+	input := &dto.UpdateCategoryRequest{ID: testID.String()}
 	input.Body.Name = "Updated Electronics"
 
 	mockService.On("UpdateCategory", ctx, mock.MatchedBy(func(c *entities.Category) bool {
-		return c.ID == 1 && c.Name == "Updated Electronics"
+		return c.ID == testID && c.Name == "Updated Electronics"
 	})).Return(nil).Run(func(args mock.Arguments) {
 		cat := args.Get(1).(*entities.Category)
 		cat.CreatedAt = time.Now()
@@ -284,7 +293,7 @@ func TestUpdateCategory_Success(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, 1, response.Body.ID)
+	assert.Equal(t, testID.String(), response.Body.ID)
 	assert.Equal(t, "Updated Electronics", response.Body.Name)
 	mockService.AssertExpectations(t)
 }
@@ -296,8 +305,9 @@ func TestDeleteCategory_Success(t *testing.T) {
 	handler := NewCategoryHandler(mockService)
 	ctx := context.Background()
 
-	input := &dto.DeleteCategoryRequest{ID: 1}
-	mockService.On("DeleteCategory", ctx, 1).Return(nil)
+	testID := uuid.New()
+	input := &dto.DeleteCategoryRequest{ID: testID.String()}
+	mockService.On("DeleteCategory", ctx, testID).Return(nil)
 
 	// Act
 	response, err := handler.DeleteCategory(ctx, input)
@@ -315,9 +325,10 @@ func TestDeleteCategory_WithChildren(t *testing.T) {
 	handler := NewCategoryHandler(mockService)
 	ctx := context.Background()
 
-	input := &dto.DeleteCategoryRequest{ID: 1}
+	testID := uuid.New()
+	input := &dto.DeleteCategoryRequest{ID: testID.String()}
 	validationErr := domainErrors.NewValidationError("category", "Cannot delete category with children")
-	mockService.On("DeleteCategory", ctx, 1).Return(validationErr)
+	mockService.On("DeleteCategory", ctx, testID).Return(validationErr)
 
 	// Act
 	response, err := handler.DeleteCategory(ctx, input)
@@ -338,15 +349,15 @@ func TestListCategoriesByParent_Success(t *testing.T) {
 	handler := NewCategoryHandler(mockService)
 	ctx := context.Background()
 
-	parentID := 1
-	input := &dto.ListCategoriesByParentRequest{ParentID: &parentID}
+	parentUUID := uuid.New()
+	input := &dto.ListCategoriesByParentRequest{ParentID: parentUUID.String()}
 
 	categories := []*entities.Category{
-		{ID: 2, Name: "Laptops", ParentID: &parentID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
-		{ID: 3, Name: "Phones", ParentID: &parentID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: uuid.New(), Name: "Laptops", ParentID: &parentUUID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: uuid.New(), Name: "Phones", ParentID: &parentUUID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}
 
-	mockService.On("ListCategoriesByParentID", ctx, &parentID).Return(categories, nil)
+	mockService.On("ListCategoriesByParentID", ctx, &parentUUID).Return(categories, nil)
 
 	// Act
 	response, err := handler.ListCategoriesByParent(ctx, input)
