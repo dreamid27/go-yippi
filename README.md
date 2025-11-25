@@ -14,12 +14,16 @@ A production-ready REST API built with **Hexagonal Architecture** (Ports and Ada
 
 - ✅ **Hexagonal Architecture** - Clean separation of concerns with dependency inversion
 - ✅ **Domain-Driven Design** - Business logic isolated from infrastructure
-- ✅ **OpenAPI Documentation** - Auto-generated interactive API docs
+- ✅ **OpenAPI Documentation** - Auto-generated interactive API docs with Scalar UI
 - ✅ **Type-Safe Validation** - Request/response validation with Huma
 - ✅ **Domain Error Handling** - Custom error types without infrastructure leakage
 - ✅ **Repository Pattern** - Abstract data access through ports
 - ✅ **Automatic Migrations** - Database schema managed by Ent
 - ✅ **Hot Reload** - Development mode with Air
+- ✅ **Structured Logging** - High-performance Zap logging with OpenTelemetry integration
+- ✅ **APM & Tracing** - Comprehensive observability with SigNoz integration
+- ✅ **Security Monitoring** - Automated threat detection and security event logging
+- ✅ **Audit Trails** - Sensitive operation tracking with compliance support
 
 ## Project Structure
 
