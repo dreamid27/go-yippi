@@ -3,16 +3,20 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 
+	"example.com/go-yippi/internal/infrastructure/logging"
 	"github.com/joho/godotenv"
 )
 
 // Config holds application configuration
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	MinIO    MinIOConfig
-	Storage  StorageConfig
+	Server         ServerConfig
+	Database       DatabaseConfig
+	MinIO          MinIOConfig
+	Storage        StorageConfig
+	OpenTelemetry OpenTelemetryConfig
+	Logging        logging.LogConfig
 }
 
 type ServerConfig struct {
@@ -35,6 +39,13 @@ type MinIOConfig struct {
 
 type StorageConfig struct {
 	Backend string // "database" or "minio"
+}
+
+type OpenTelemetryConfig struct {
+	ServiceName        string
+	CollectorURL       string
+	InsecureMode       bool
+	Enabled            bool
 }
 
 // Load loads configuration from environment or files
@@ -63,6 +74,21 @@ func Load() *Config {
 		Storage: StorageConfig{
 			Backend: getEnv("STORAGE_BACKEND", "database"),
 		},
+		OpenTelemetry: OpenTelemetryConfig{
+			ServiceName:  getEnv("OTEL_SERVICE_NAME", "go-yippi-api"),
+			CollectorURL: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
+			InsecureMode: getEnvBool("OTEL_INSECURE_MODE", true),
+			Enabled:      getEnvBool("OTEL_ENABLED", false),
+		},
+		Logging: logging.LogConfig{
+			Level:      getEnv("LOG_LEVEL", "info"),
+			Format:     getEnv("LOG_FORMAT", "json"),
+			Output:     getEnv("LOG_OUTPUT", "stdout"),
+			MaxSize:    getEnvInt("LOG_MAX_SIZE", 100),
+			MaxBackups: getEnvInt("LOG_MAX_BACKUPS", 3),
+			MaxAge:     getEnvInt("LOG_MAX_AGE", 28),
+			Compress:   getEnvBool("LOG_COMPRESS", true),
+		},
 	}
 }
 
@@ -76,6 +102,15 @@ func getEnv(key, fallback string) string {
 func getEnvBool(key string, fallback bool) bool {
 	if v := os.Getenv(key); v != "" {
 		return v == "true" || v == "1" || v == "yes"
+	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if val, err := strconv.Atoi(v); err == nil {
+			return val
+		}
 	}
 	return fallback
 }
