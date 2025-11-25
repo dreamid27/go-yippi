@@ -1,6 +1,11 @@
 package config
 
-import "os"
+import (
+	"log"
+	"os"
+
+	"github.com/joho/godotenv"
+)
 
 // Config holds application configuration
 type Config struct {
@@ -34,6 +39,11 @@ type StorageConfig struct {
 
 // Load loads configuration from environment or files
 func Load() *Config {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: Could not load .env file: %v", err)
+	}
+
 	return &Config{
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
@@ -49,6 +59,9 @@ func Load() *Config {
 			SecretAccessKey: getEnv("MINIO_SECRET_KEY", "minioadmin123"),
 			UseSSL:          getEnvBool("MINIO_USE_SSL", false),
 			BucketName:      getEnv("MINIO_BUCKET_NAME", "go-yippi"),
+		},
+		Storage: StorageConfig{
+			Backend: getEnv("STORAGE_BACKEND", "database"),
 		},
 	}
 }
