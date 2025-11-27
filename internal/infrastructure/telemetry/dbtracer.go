@@ -117,6 +117,9 @@ func (t *TracedEntClient) traceQuery(ctx context.Context, entityType, operation 
 		}
 	}
 
+	// Record database metrics
+	RecordDBQuery(ctx, operation, entityType, duration, err)
+
 	span.End()
 	return result, err
 }

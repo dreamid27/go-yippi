@@ -23,6 +23,10 @@ func HTTPMiddleware(serviceName string) fiber.Handler {
 	tracer := otel.Tracer(TracerName)
 
 	return func(c *fiber.Ctx) error {
+		// Increment active requests metric
+		IncrementActiveHTTPRequests(c.Context())
+		defer DecrementActiveHTTPRequests(c.Context())
+
 		// Start span
 		ctx, span := tracer.Start(
 			c.Context(),
@@ -65,16 +69,20 @@ func HTTPMiddleware(serviceName string) fiber.Handler {
 		// Calculate duration
 		duration := time.Since(startTime)
 
+		// Get response details
+		statusCode := c.Response().StatusCode()
+		requestSize := int64(len(c.Request().Body()))
+		responseSize := int64(len(c.Response().Body()))
+
 		// Add response attributes
 		span.SetAttributes(
-			attribute.Int("http.status_code", c.Response().StatusCode()),
+			attribute.Int("http.status_code", statusCode),
 			attribute.Int("http.response_content_length", len(c.Response().Body())),
 			attribute.Float64("http.request.duration_ms", float64(duration.Nanoseconds())/1e6),
 			attribute.String("http.route", c.Route().Path),
 		)
 
 		// Set span status based on HTTP status code
-		statusCode := c.Response().StatusCode()
 		if statusCode >= 400 {
 			spanStatus := codes.Error
 			if statusCode >= 500 {
@@ -93,6 +101,9 @@ func HTTPMiddleware(serviceName string) fiber.Handler {
 			)
 			span.SetStatus(codes.Error, err.Error())
 		}
+
+		// Record HTTP metrics
+		RecordHTTPRequest(ctx, c.Method(), c.Route().Path, statusCode, duration, requestSize, responseSize)
 
 		// End span
 		span.End()

@@ -4,72 +4,147 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"example.com/go-yippi/internal/domain/ports"
+	"example.com/go-yippi/internal/infrastructure/observability"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // ProductService handles business logic for products
 type ProductService struct {
 	repo         ports.ProductRepository
 	categoryRepo ports.CategoryRepository
+	observer     *observability.ServiceObserver
 }
 
 func NewProductService(repo ports.ProductRepository, categoryRepo ports.CategoryRepository) *ProductService {
 	return &ProductService{
 		repo:         repo,
 		categoryRepo: categoryRepo,
+		observer:     observability.NewServiceObserver("ProductService"),
 	}
 }
 
 func (s *ProductService) CreateProduct(ctx context.Context, product *entities.Product) error {
+	// Start observable operation
+	op := s.observer.StartOperation(ctx, "CreateProduct")
+	defer op.End(nil)
+
+	// Add input attributes for tracing
+	op.AddAttribute("sku", product.SKU)
+	op.AddAttribute("name", product.Name)
+	op.AddAttribute("price", fmt.Sprintf("%.2f", product.Price))
+
 	// Validate required fields
 	if strings.TrimSpace(product.SKU) == "" {
-		return domainErrors.NewValidationError("sku", "SKU is required")
+		err := domainErrors.NewValidationError("sku", "SKU is required")
+		observability.LogValidationError(op.Context(), "sku", "SKU is required")
+		op.End(err)
+		return err
 	}
 	if strings.TrimSpace(product.Name) == "" {
-		return domainErrors.NewValidationError("name", "Name is required")
+		err := domainErrors.NewValidationError("name", "Name is required")
+		observability.LogValidationError(op.Context(), "name", "Name is required")
+		op.End(err)
+		return err
 	}
 	if product.Price <= 0 {
-		return domainErrors.NewValidationError("price", "Price must be greater than 0")
+		err := domainErrors.NewValidationError("price", "Price must be greater than 0")
+		observability.LogValidationError(op.Context(), "price", "Price must be greater than 0")
+		op.End(err)
+		return err
 	}
 
 	// Auto-generate slug from name if not provided
 	if strings.TrimSpace(product.Slug) == "" {
 		product.Slug = entities.GenerateSlug(product.Name)
+		op.LogInfo("Auto-generated slug from product name",
+			zap.String("slug", product.Slug))
 	}
 
 	// Set default status to draft if not provided or empty
 	if product.Status == "" {
 		product.Status = entities.ProductStatusDraft
+		op.LogInfo("Set default product status to draft")
 	}
 
 	// Validate status
 	if !product.IsValid() {
-		return domainErrors.NewValidationError("status", "Invalid product status")
+		err := domainErrors.NewValidationError("status", "Invalid product status")
+		observability.LogValidationError(op.Context(), "status", "Invalid product status")
+		op.End(err)
+		return err
 	}
 
 	// Validate dimensions for courier calculation (if provided)
 	if product.Weight < 0 {
-		return domainErrors.NewValidationError("weight", "Weight cannot be negative")
+		err := domainErrors.NewValidationError("weight", "Weight cannot be negative")
+		observability.LogValidationError(op.Context(), "weight", "Weight cannot be negative")
+		op.End(err)
+		return err
 	}
 	if product.Length < 0 {
-		return domainErrors.NewValidationError("length", "Length cannot be negative")
+		err := domainErrors.NewValidationError("length", "Length cannot be negative")
+		observability.LogValidationError(op.Context(), "length", "Length cannot be negative")
+		op.End(err)
+		return err
 	}
 	if product.Width < 0 {
-		return domainErrors.NewValidationError("width", "Width cannot be negative")
+		err := domainErrors.NewValidationError("width", "Width cannot be negative")
+		observability.LogValidationError(op.Context(), "width", "Width cannot be negative")
+		op.End(err)
+		return err
 	}
 	if product.Height < 0 {
-		return domainErrors.NewValidationError("height", "Height cannot be negative")
+		err := domainErrors.NewValidationError("height", "Height cannot be negative")
+		observability.LogValidationError(op.Context(), "height", "Height cannot be negative")
+		op.End(err)
+		return err
 	}
 
-	return s.repo.Create(ctx, product)
+	// Create product in repository
+	startTime := time.Now()
+	err := s.repo.Create(op.Context(), product)
+
+	// Log slow operation if it takes too long
+	observability.LogSlowOperation(op.Context(), "CreateProduct", time.Since(startTime), 100*time.Millisecond)
+
+	if err != nil {
+		op.End(err)
+		return err
+	}
+
+	// Record business event
+	op.RecordBusinessEvent("product", "product_created",
+		zap.String("product_id", fmt.Sprintf("%d", product.ID)),
+		zap.String("sku", product.SKU),
+		zap.String("status", string(product.Status)),
+	)
+
+	op.End(nil)
+	return nil
 }
 
 func (s *ProductService) GetProduct(ctx context.Context, id int) (*entities.Product, error) {
-	return s.repo.GetByID(ctx, id)
+	// Start observable operation
+	op := s.observer.StartOperation(ctx, "GetProduct")
+	defer func() { op.End(nil) }()
+
+	op.AddAttribute("product_id", id)
+
+	product, err := s.repo.GetByID(op.Context(), id)
+	if err != nil {
+		observability.LogNotFoundError(op.Context(), "Product", id)
+		op.End(err)
+		return nil, err
+	}
+
+	op.End(nil)
+	return product, nil
 }
 
 func (s *ProductService) GetProductBySKU(ctx context.Context, sku string) (*entities.Product, error) {
@@ -147,18 +222,53 @@ func (s *ProductService) DeleteProduct(ctx context.Context, id int) error {
 }
 
 func (s *ProductService) PublishProduct(ctx context.Context, id int) error {
-	product, err := s.repo.GetByID(ctx, id)
+	// Start observable operation
+	op := s.observer.StartOperation(ctx, "PublishProduct")
+	defer func() { op.End(nil) }()
+
+	op.AddAttribute("product_id", id)
+
+	product, err := s.repo.GetByID(op.Context(), id)
 	if err != nil {
+		observability.LogNotFoundError(op.Context(), "Product", id)
+		op.End(err)
 		return err
 	}
 
+	op.AddAttribute("current_status", string(product.Status))
+
 	// Business rule: can only publish draft products
 	if product.Status != entities.ProductStatusDraft {
-		return domainErrors.NewValidationError("status", "Only draft products can be published")
+		err := domainErrors.NewValidationError("status", "Only draft products can be published")
+		observability.LogBusinessRule(op.Context(), "publish_draft_only",
+			fmt.Sprintf("Cannot publish product with status: %s", product.Status))
+		op.End(err)
+		return err
 	}
 
+	oldStatus := product.Status
 	product.Status = entities.ProductStatusPublished
-	return s.repo.Update(ctx, product)
+
+	err = s.repo.Update(op.Context(), product)
+	if err != nil {
+		op.End(err)
+		return err
+	}
+
+	// Record business event
+	op.RecordBusinessEvent("product", "product_published",
+		zap.String("product_id", fmt.Sprintf("%d", id)),
+		zap.String("sku", product.SKU),
+		zap.String("old_status", string(oldStatus)),
+		zap.String("new_status", string(product.Status)),
+	)
+
+	op.LogInfo("Product status changed",
+		zap.String("from_status", string(oldStatus)),
+		zap.String("to_status", string(product.Status)))
+
+	op.End(nil)
+	return nil
 }
 
 func (s *ProductService) ArchiveProduct(ctx context.Context, id int) error {
@@ -173,12 +283,20 @@ func (s *ProductService) ArchiveProduct(ctx context.Context, id int) error {
 
 // QueryProducts performs a flexible query with validation
 func (s *ProductService) QueryProducts(ctx context.Context, params *entities.QueryParams) (*entities.QueryResult, error) {
+	// Start observable operation
+	op := s.observer.StartOperation(ctx, "QueryProducts")
+	defer func() { op.End(nil) }()
+
+	op.AddAttribute("filters_count", len(params.Filters))
+	op.AddAttribute("sort_count", len(params.Sort))
+
 	// Validate and set defaults for pagination
 	if params.Pagination == nil {
 		params.Pagination = &entities.PaginationParams{
 			Limit:     20,
 			Direction: "forward",
 		}
+		op.LogInfo("Using default pagination parameters")
 	} else {
 		if params.Pagination.Limit <= 0 {
 			params.Pagination.Limit = 20
@@ -190,33 +308,47 @@ func (s *ProductService) QueryProducts(ctx context.Context, params *entities.Que
 			params.Pagination.Direction = "forward"
 		}
 		if params.Pagination.Direction != "forward" && params.Pagination.Direction != "backward" {
-			return nil, domainErrors.NewValidationError("direction", "Direction must be 'forward' or 'backward'")
+			err := domainErrors.NewValidationError("direction", "Direction must be 'forward' or 'backward'")
+			observability.LogValidationError(op.Context(), "direction", "Direction must be 'forward' or 'backward'")
+			op.End(err)
+			return nil, err
 		}
 	}
 
+	op.AddAttribute("pagination_limit", params.Pagination.Limit)
+	op.AddAttribute("pagination_direction", params.Pagination.Direction)
+
 	// Validate filters (max 10 filters)
 	if len(params.Filters) > 10 {
-		return nil, domainErrors.NewValidationError("filters", "Maximum 10 filters allowed")
+		err := domainErrors.NewValidationError("filters", "Maximum 10 filters allowed")
+		observability.LogValidationError(op.Context(), "filters", "Maximum 10 filters allowed")
+		op.End(err)
+		return nil, err
 	}
 
 	for _, filter := range params.Filters {
 		if err := s.validateFilter(filter); err != nil {
+			observability.LogValidationError(op.Context(), "filter", err.Error())
+			op.End(err)
 			return nil, err
 		}
 	}
 
 	// Validate sort params (max 3 sorts)
 	if len(params.Sort) > 3 {
-		return nil, domainErrors.NewValidationError("sort", "Maximum 3 sort fields allowed")
+		err := domainErrors.NewValidationError("sort", "Maximum 3 sort fields allowed")
+		observability.LogValidationError(op.Context(), "sort", "Maximum 3 sort fields allowed")
+		op.End(err)
+		return nil, err
 	}
 
 	for _, sort := range params.Sort {
 		if err := s.validateSort(sort); err != nil {
+			observability.LogValidationError(op.Context(), "sort", err.Error())
+			op.End(err)
 			return nil, err
 		}
 	}
-
-	fmt.Println(params.Filters)
 
 	// Expand category_id filters to include descendants
 	for i, filter := range params.Filters {
@@ -260,9 +392,18 @@ func (s *ProductService) QueryProducts(ctx context.Context, params *entities.Que
 
 			// Expand to include all descendants
 			if len(categoryIDs) > 0 {
-				expandedIDs, err := s.categoryRepo.GetDescendantIDs(ctx, categoryIDs)
+				expandedIDs, err := s.categoryRepo.GetDescendantIDs(op.Context(), categoryIDs)
 				if err != nil {
-					return nil, domainErrors.NewValidationError("category_id", "Failed to expand category IDs")
+					err := domainErrors.NewValidationError("category_id", "Failed to expand category IDs")
+					op.End(err)
+					return nil, err
+				}
+
+				// Log category expansion
+				if len(expandedIDs) > len(categoryIDs) {
+					op.LogInfo("Expanded category filter to include descendants",
+						zap.Int("original_count", len(categoryIDs)),
+						zap.Int("expanded_count", len(expandedIDs)))
 				}
 
 				// Update the filter with expanded IDs (convert UUID back to string)
@@ -282,7 +423,30 @@ func (s *ProductService) QueryProducts(ctx context.Context, params *entities.Que
 		}
 	}
 
-	return s.repo.Query(ctx, params)
+	// Execute query
+	startTime := time.Now()
+	result, err := s.repo.Query(op.Context(), params)
+
+	// Log slow query
+	observability.LogSlowOperation(op.Context(), "QueryProducts", time.Since(startTime), 200*time.Millisecond)
+
+	if err != nil {
+		op.End(err)
+		return nil, err
+	}
+
+	// Log query results
+	op.AddAttribute("results_count", len(result.Products))
+	op.AddAttribute("has_next", result.PageInfo.HasNextPage)
+	op.AddAttribute("has_previous", result.PageInfo.HasPreviousPage)
+
+	op.LogInfo("Query completed successfully",
+		zap.Int("results_count", len(result.Products)),
+		zap.Bool("has_next", result.PageInfo.HasNextPage),
+		zap.Bool("has_previous", result.PageInfo.HasPreviousPage))
+
+	op.End(nil)
+	return result, nil
 }
 
 // validateFilter validates a single filter

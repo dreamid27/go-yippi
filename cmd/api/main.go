@@ -33,9 +33,13 @@ func main() {
 	}
 	defer logging.Sync()
 
-	// Initialize OpenTelemetry
-	cleanup := telemetry.InitTracer(&cfg.OpenTelemetry)
-	defer cleanup(context.Background())
+	// Initialize OpenTelemetry Tracing
+	tracerCleanup := telemetry.InitTracer(&cfg.OpenTelemetry)
+	defer tracerCleanup(context.Background())
+
+	// Initialize OpenTelemetry Metrics
+	metricsCleanup := telemetry.InitMetrics(&cfg.OpenTelemetry)
+	defer metricsCleanup(context.Background())
 
 	// Initialize Ent client
 	client, err := ent.Open(cfg.Database.Driver, cfg.Database.DSN)

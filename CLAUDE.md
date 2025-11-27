@@ -565,3 +565,205 @@ Check coverage:
 go test ./internal/application/services -cover
 go test ./internal/adapters/api/handlers -cover
 ```
+
+## Observability (APM, Tracing, Logging)
+
+This project implements comprehensive observability with **OpenTelemetry**, **Zap**, and **SigNoz**.
+
+**Stack:**
+- **Distributed Tracing**: OpenTelemetry (traces propagate across HTTP → Service → Repository → Database)
+- **Structured Logging**: Zap with JSON format, correlated with trace IDs
+- **APM Metrics**: Request rates, latencies, errors, business events
+- **Backend**: SigNoz for unified visualization
+
+**What's Already Instrumented:**
+- ✅ HTTP layer - Automatic request/response tracing + metrics
+- ✅ Database layer - Automatic query tracing + metrics
+- ⚠️ Service layer - **You must add to each service method**
+
+### Adding Observability to Services
+
+**CRITICAL**: Every service method that implements business logic **must** be instrumented for complete observability.
+
+**Quick Setup:**
+
+```go
+import (
+    "example.com/go-yippi/internal/infrastructure/observability"
+    "go.uber.org/zap"
+)
+
+// 1. Add observer field to service
+type YourService struct {
+    repo     ports.YourRepository
+    observer *observability.ServiceObserver
+}
+
+// 2. Initialize in constructor
+func NewYourService(repo ports.YourRepository) *YourService {
+    return &YourService{
+        repo:     repo,
+        observer: observability.NewServiceObserver("YourService"),
+    }
+}
+
+// 3. Wrap all business methods
+func (s *YourService) CreateItem(ctx context.Context, item *entities.Item) error {
+    // Start operation (creates trace span + logs)
+    op := s.observer.StartOperation(ctx, "CreateItem")
+    defer op.End(nil)
+
+    // Add attributes for tracing
+    op.AddAttribute("name", item.Name)
+
+    // Validation with logging
+    if item.Name == "" {
+        err := domainErrors.NewValidationError("name", "Name required")
+        observability.LogValidationError(op.Context(), "name", "Name required")
+        op.End(err)
+        return err
+    }
+
+    // Repository call with traced context
+    err := s.repo.Create(op.Context(), item)
+    if err != nil {
+        op.End(err)
+        return err
+    }
+
+    // Record business event (appears in SigNoz metrics)
+    op.RecordBusinessEvent("item", "item_created",
+        zap.String("item_id", fmt.Sprintf("%d", item.ID)))
+
+    op.End(nil)
+    return nil
+}
+```
+
+### What to Log
+
+**✅ Always log:**
+- **Validation errors**: `observability.LogValidationError(ctx, "field", "message")`
+- **Business rules**: `observability.LogBusinessRule(ctx, "rule_name", "explanation")`
+- **Not found errors**: `observability.LogNotFoundError(ctx, "Entity", id)`
+- **Business events**: `op.RecordBusinessEvent("category", "event_name", ...)`
+- **State transitions**: `op.LogInfo("Status changed", zap.String("from", old), zap.String("to", new))`
+- **Slow operations**: `observability.LogSlowOperation(ctx, "OperationName", duration, threshold)`
+
+**❌ Never log:**
+- Sensitive data (passwords, tokens, credit cards, PII)
+- High-frequency verbose logs (loop iterations)
+- Redundant information already in traces
+
+### Context Propagation
+
+**CRITICAL**: Always use `op.Context()` for downstream calls to propagate traces:
+
+```go
+// ✅ CORRECT
+op := s.observer.StartOperation(ctx, "Method")
+result := s.repo.Query(op.Context()) // Trace propagated
+
+// ❌ WRONG
+op := s.observer.StartOperation(ctx, "Method")
+result := s.repo.Query(ctx) // Trace broken!
+```
+
+### Common Patterns
+
+**Simple read:**
+```go
+func (s *Service) GetByID(ctx context.Context, id int) (*Item, error) {
+    op := s.observer.StartOperation(ctx, "GetByID")
+    defer op.End(nil)
+
+    op.AddAttribute("id", id)
+    item, err := s.repo.GetByID(op.Context(), id)
+    if err != nil {
+        observability.LogNotFoundError(op.Context(), "Item", id)
+        op.End(err)
+        return nil, err
+    }
+
+    op.End(nil)
+    return item, nil
+}
+```
+
+**Business rule enforcement:**
+```go
+func (s *Service) Activate(ctx context.Context, id int) error {
+    op := s.observer.StartOperation(ctx, "Activate")
+    defer op.End(nil)
+
+    item, err := s.repo.GetByID(op.Context(), id)
+    if err != nil {
+        op.End(err)
+        return err
+    }
+
+    // Business rule check
+    if item.Status != StatusPending {
+        err := domainErrors.NewValidationError("status", "Only pending items can be activated")
+        observability.LogBusinessRule(op.Context(), "activate_pending_only",
+            fmt.Sprintf("Cannot activate item with status: %s", item.Status))
+        op.End(err)
+        return err
+    }
+
+    item.Status = StatusActive
+    err = s.repo.Update(op.Context(), item)
+    if err != nil {
+        op.End(err)
+        return err
+    }
+
+    op.RecordBusinessEvent("item", "item_activated",
+        zap.String("item_id", fmt.Sprintf("%d", id)))
+
+    op.End(nil)
+    return nil
+}
+```
+
+### Repository & Handler Observability
+
+**Repositories**: ✅ Already instrumented - no action needed
+- Database queries automatically traced and metricked via Ent hooks
+
+**Handlers**: ✅ Already instrumented - no action needed
+- HTTP requests automatically traced and logged via middleware
+- Just ensure you pass context to services
+
+### Viewing in SigNoz
+
+1. **Traces**: See full request flow (HTTP → Service → DB) at http://localhost:3301
+2. **Logs**: Filter by `trace_id` to correlate logs with traces
+3. **Metrics**: Query APM metrics:
+   - `http_server_request_duration_ms` - API latency
+   - `service_operation_duration_ms` - Service performance
+   - `db_client_query_duration_ms` - Database query times
+   - `business_event_count` - Business event rates
+
+### Documentation
+
+**Detailed guides:**
+- **[Observability Guide](docs/guides/observability-guide.md)** - Complete documentation
+- **[Quick Reference](docs/guides/observability-cheatsheet.md)** - Copy-paste examples
+
+**Example implementation:**
+- `internal/application/services/product_service.go` - Production example with full observability
+
+### When Adding New Features
+
+When implementing a new service method:
+1. Add `observer *observability.ServiceObserver` field to service struct
+2. Initialize observer in `New*Service()` constructor
+3. Wrap method with `op := s.observer.StartOperation(ctx, "MethodName")`
+4. Add `defer op.End(nil)` at start
+5. Use `op.Context()` for all downstream calls
+6. Log validation errors, business rules, and events
+7. Call `op.End(err)` before returning errors
+8. Call `op.End(nil)` on success
+
+**See** `docs/guides/observability-cheatsheet.md` for quick copy-paste examples.
