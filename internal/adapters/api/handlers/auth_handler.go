@@ -210,7 +210,7 @@ func (h *AuthHandler) GetCurrentUser(ctx context.Context, input *struct{}) (*str
 // convertUserToDTO converts a domain User entity to a UserData DTO
 func convertUserToDTO(user *entities.User) dto.UserData {
 	return dto.UserData{
-		ID:       user.ID,
+		ID:       user.ID.String(),
 		Email:    user.Email,
 		Name:     user.Name,
 		Phone:    user.Phone,

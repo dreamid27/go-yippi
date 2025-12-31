@@ -3,6 +3,7 @@ package ports
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"example.com/go-yippi/internal/domain/entities"
 )
 
@@ -11,6 +12,6 @@ type RefreshTokenRepository interface {
 	Create(ctx context.Context, token *entities.RefreshToken) error
 	FindByToken(ctx context.Context, token string) (*entities.RefreshToken, error)
 	Revoke(ctx context.Context, token string) error
-	RevokeAllForUser(ctx context.Context, userID int) error
+	RevokeAllForUser(ctx context.Context, userID uuid.UUID) error
 	DeleteExpired(ctx context.Context) error
 }

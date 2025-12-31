@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/product"
 	"example.com/go-yippi/internal/domain/entities"
@@ -21,15 +22,20 @@ func NewProductRepository(client *ent.Client) *ProductRepositoryImpl {
 func (r *ProductRepositoryImpl) Create(ctx context.Context, prod *entities.Product) error {
 	builder := r.client.Product.
 		Create().
-		SetSku(prod.SKU).
 		SetSlug(prod.Slug).
 		SetName(prod.Name).
-		SetPrice(prod.Price).
+		SetBasePrice(prod.BasePrice).
 		SetDescription(prod.Description).
+		SetLowStockThreshold(prod.LowStockThreshold).
 		SetWeight(prod.Weight).
 		SetLength(prod.Length).
 		SetWidth(prod.Width).
 		SetHeight(prod.Height)
+
+	// Set stock quantity if provided (for non-variant products)
+	if prod.StockQuantity != nil {
+		builder = builder.SetStockQuantity(*prod.StockQuantity)
+	}
 
 	// Set image URLs if provided
 	if prod.ImageURLs != nil {
@@ -51,7 +57,7 @@ func (r *ProductRepositoryImpl) Create(ctx context.Context, prod *entities.Produ
 		Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
-			return domainErrors.NewDuplicateError("Product", "sku or slug", prod.SKU)
+			return domainErrors.NewDuplicateError("Product", "slug", prod.Slug)
 		}
 		return err
 	}
@@ -62,26 +68,11 @@ func (r *ProductRepositoryImpl) Create(ctx context.Context, prod *entities.Produ
 	return nil
 }
 
-func (r *ProductRepositoryImpl) GetByID(ctx context.Context, id int) (*entities.Product, error) {
+func (r *ProductRepositoryImpl) GetByID(ctx context.Context, id uuid.UUID) (*entities.Product, error) {
 	found, err := r.client.Product.Get(ctx, id)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, domainErrors.NewNotFoundError("Product", id)
-		}
-		return nil, err
-	}
-
-	return r.toEntity(found), nil
-}
-
-func (r *ProductRepositoryImpl) GetBySKU(ctx context.Context, sku string) (*entities.Product, error) {
-	found, err := r.client.Product.
-		Query().
-		Where(product.SkuEQ(sku)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, domainErrors.NewNotFoundError("Product", sku)
 		}
 		return nil, err
 	}
@@ -138,15 +129,22 @@ func (r *ProductRepositoryImpl) ListByStatus(ctx context.Context, status entitie
 func (r *ProductRepositoryImpl) Update(ctx context.Context, prod *entities.Product) error {
 	builder := r.client.Product.
 		UpdateOneID(prod.ID).
-		SetSku(prod.SKU).
 		SetSlug(prod.Slug).
 		SetName(prod.Name).
-		SetPrice(prod.Price).
+		SetBasePrice(prod.BasePrice).
 		SetDescription(prod.Description).
+		SetLowStockThreshold(prod.LowStockThreshold).
 		SetWeight(prod.Weight).
 		SetLength(prod.Length).
 		SetWidth(prod.Width).
 		SetHeight(prod.Height)
+
+	// Set or clear stock quantity
+	if prod.StockQuantity != nil {
+		builder = builder.SetStockQuantity(*prod.StockQuantity)
+	} else {
+		builder = builder.ClearStockQuantity()
+	}
 
 	// Set image URLs if provided
 	if prod.ImageURLs != nil {
@@ -175,14 +173,14 @@ func (r *ProductRepositoryImpl) Update(ctx context.Context, prod *entities.Produ
 			return domainErrors.NewNotFoundError("Product", prod.ID)
 		}
 		if ent.IsConstraintError(err) {
-			return domainErrors.NewDuplicateError("Product", "sku or slug", prod.SKU)
+			return domainErrors.NewDuplicateError("Product", "slug", prod.Slug)
 		}
 		return err
 	}
 	return nil
 }
 
-func (r *ProductRepositoryImpl) Delete(ctx context.Context, id int) error {
+func (r *ProductRepositoryImpl) Delete(ctx context.Context, id uuid.UUID) error {
 	err := r.client.Product.DeleteOneID(id).Exec(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -196,20 +194,21 @@ func (r *ProductRepositoryImpl) Delete(ctx context.Context, id int) error {
 // toEntity converts Ent Product to domain entity
 func (r *ProductRepositoryImpl) toEntity(p *ent.Product) *entities.Product {
 	product := &entities.Product{
-		ID:          p.ID,
-		SKU:         p.Sku,
-		Slug:        p.Slug,
-		Name:        p.Name,
-		Price:       p.Price,
-		Description: p.Description,
-		Weight:      p.Weight,
-		Length:      p.Length,
-		Width:       p.Width,
-		Height:      p.Height,
-		ImageURLs:   p.ImageUrls,
-		Status:      entities.ProductStatus(p.Status),
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+		ID:                p.ID,
+		Slug:              p.Slug,
+		Name:              p.Name,
+		BasePrice:         p.BasePrice,
+		Description:       p.Description,
+		StockQuantity:     p.StockQuantity,
+		LowStockThreshold: p.LowStockThreshold,
+		Weight:            p.Weight,
+		Length:            p.Length,
+		Width:             p.Width,
+		Height:            p.Height,
+		ImageURLs:         p.ImageUrls,
+		Status:            entities.ProductStatus(p.Status),
+		CreatedAt:         p.CreatedAt,
+		UpdatedAt:         p.UpdatedAt,
 	}
 
 	// Set category ID if it exists

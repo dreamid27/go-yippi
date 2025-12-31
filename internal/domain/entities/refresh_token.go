@@ -9,7 +9,7 @@ import (
 // RefreshToken represents a refresh token domain entity
 type RefreshToken struct {
 	ID        uuid.UUID
-	UserID    int
+	UserID    uuid.UUID
 	Token     string
 	ExpiresAt time.Time
 	CreatedAt time.Time

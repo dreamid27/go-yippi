@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent"
 	entuser "example.com/go-yippi/internal/adapters/persistence/db/ent/user"
 	"example.com/go-yippi/internal/domain/entities"
@@ -57,7 +58,7 @@ func (r *UserRepositoryImpl) Create(ctx context.Context, user *entities.User) er
 	return nil
 }
 
-func (r *UserRepositoryImpl) GetByID(ctx context.Context, id int) (*entities.User, error) {
+func (r *UserRepositoryImpl) GetByID(ctx context.Context, id uuid.UUID) (*entities.User, error) {
 	found, err := r.client.User.Get(ctx, id)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -122,7 +123,7 @@ func (r *UserRepositoryImpl) Update(ctx context.Context, user *entities.User) er
 	return nil
 }
 
-func (r *UserRepositoryImpl) Delete(ctx context.Context, id int) error {
+func (r *UserRepositoryImpl) Delete(ctx context.Context, id uuid.UUID) error {
 	err := r.client.User.DeleteOneID(id).Exec(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {

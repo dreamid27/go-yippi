@@ -1,9 +1,11 @@
 package entities
 
+import "github.com/google/uuid"
+
 // Cursor contains pagination metadata for cursor-based pagination
 type Cursor struct {
-	ID        int    `json:"id"`
-	CreatedAt string `json:"created_at"` // RFC3339 format
+	ID        uuid.UUID `json:"id"`
+	CreatedAt string    `json:"created_at"` // RFC3339 format
 }
 
 // PageInfo contains pagination metadata in the response

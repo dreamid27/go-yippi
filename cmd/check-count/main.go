@@ -27,15 +27,14 @@ func main() {
 
 	fmt.Printf("Total products in database: %d\n", count)
 
-	// Get the last SKU to show what the next one will be
+	// Get the last product to show details
 	if count > 0 {
 		lastProduct, err := client.Product.Query().
-			Order(ent.Desc("id")).
+			Order(ent.Desc("created_at")).
 			First(ctx)
 		if err != nil {
 			log.Fatalf("failed getting last product: %v", err)
 		}
-		fmt.Printf("Last SKU: %s\n", lastProduct.Sku)
-		fmt.Printf("Next SKU will be: SKU-%08d\n", count+1)
+		fmt.Printf("Last Product: %s (Slug: %s)\n", lastProduct.Name, lastProduct.Slug)
 	}
 }

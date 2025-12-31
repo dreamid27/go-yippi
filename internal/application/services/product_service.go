@@ -35,26 +35,19 @@ func (s *ProductService) CreateProduct(ctx context.Context, product *entities.Pr
 	defer op.End(nil)
 
 	// Add input attributes for tracing
-	op.AddAttribute("sku", product.SKU)
 	op.AddAttribute("name", product.Name)
-	op.AddAttribute("price", fmt.Sprintf("%.2f", product.Price))
+	op.AddAttribute("base_price", fmt.Sprintf("%.2f", product.BasePrice))
 
 	// Validate required fields
-	if strings.TrimSpace(product.SKU) == "" {
-		err := domainErrors.NewValidationError("sku", "SKU is required")
-		observability.LogValidationError(op.Context(), "sku", "SKU is required")
-		op.End(err)
-		return err
-	}
 	if strings.TrimSpace(product.Name) == "" {
 		err := domainErrors.NewValidationError("name", "Name is required")
 		observability.LogValidationError(op.Context(), "name", "Name is required")
 		op.End(err)
 		return err
 	}
-	if product.Price <= 0 {
-		err := domainErrors.NewValidationError("price", "Price must be greater than 0")
-		observability.LogValidationError(op.Context(), "price", "Price must be greater than 0")
+	if product.BasePrice <= 0 {
+		err := domainErrors.NewValidationError("base_price", "Base price must be greater than 0")
+		observability.LogValidationError(op.Context(), "base_price", "Base price must be greater than 0")
 		op.End(err)
 		return err
 	}
@@ -120,8 +113,7 @@ func (s *ProductService) CreateProduct(ctx context.Context, product *entities.Pr
 
 	// Record business event
 	op.RecordBusinessEvent("product", "product_created",
-		zap.String("product_id", fmt.Sprintf("%d", product.ID)),
-		zap.String("sku", product.SKU),
+		zap.String("product_id", product.ID.String()),
 		zap.String("status", string(product.Status)),
 	)
 
@@ -129,12 +121,12 @@ func (s *ProductService) CreateProduct(ctx context.Context, product *entities.Pr
 	return nil
 }
 
-func (s *ProductService) GetProduct(ctx context.Context, id int) (*entities.Product, error) {
+func (s *ProductService) GetProduct(ctx context.Context, id uuid.UUID) (*entities.Product, error) {
 	// Start observable operation
 	op := s.observer.StartOperation(ctx, "GetProduct")
 	defer func() { op.End(nil) }()
 
-	op.AddAttribute("product_id", id)
+	op.AddAttribute("product_id", id.String())
 
 	product, err := s.repo.GetByID(op.Context(), id)
 	if err != nil {
@@ -145,13 +137,6 @@ func (s *ProductService) GetProduct(ctx context.Context, id int) (*entities.Prod
 
 	op.End(nil)
 	return product, nil
-}
-
-func (s *ProductService) GetProductBySKU(ctx context.Context, sku string) (*entities.Product, error) {
-	if strings.TrimSpace(sku) == "" {
-		return nil, domainErrors.NewValidationError("sku", "SKU is required")
-	}
-	return s.repo.GetBySKU(ctx, sku)
 }
 
 func (s *ProductService) GetProductBySlug(ctx context.Context, slug string) (*entities.Product, error) {
@@ -175,14 +160,11 @@ func (s *ProductService) ListProductsByStatus(ctx context.Context, status entiti
 
 func (s *ProductService) UpdateProduct(ctx context.Context, product *entities.Product) error {
 	// Validate required fields
-	if strings.TrimSpace(product.SKU) == "" {
-		return domainErrors.NewValidationError("sku", "SKU is required")
-	}
 	if strings.TrimSpace(product.Name) == "" {
 		return domainErrors.NewValidationError("name", "Name is required")
 	}
-	if product.Price <= 0 {
-		return domainErrors.NewValidationError("price", "Price must be greater than 0")
+	if product.BasePrice <= 0 {
+		return domainErrors.NewValidationError("base_price", "Base price must be greater than 0")
 	}
 
 	// Auto-generate slug from name if not provided
@@ -217,11 +199,11 @@ func (s *ProductService) UpdateProduct(ctx context.Context, product *entities.Pr
 	return s.repo.Update(ctx, product)
 }
 
-func (s *ProductService) DeleteProduct(ctx context.Context, id int) error {
+func (s *ProductService) DeleteProduct(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *ProductService) PublishProduct(ctx context.Context, id int) error {
+func (s *ProductService) PublishProduct(ctx context.Context, id uuid.UUID) error {
 	// Start observable operation
 	op := s.observer.StartOperation(ctx, "PublishProduct")
 	defer func() { op.End(nil) }()
@@ -257,8 +239,7 @@ func (s *ProductService) PublishProduct(ctx context.Context, id int) error {
 
 	// Record business event
 	op.RecordBusinessEvent("product", "product_published",
-		zap.String("product_id", fmt.Sprintf("%d", id)),
-		zap.String("sku", product.SKU),
+		zap.String("product_id", id.String()),
 		zap.String("old_status", string(oldStatus)),
 		zap.String("new_status", string(product.Status)),
 	)
@@ -271,7 +252,7 @@ func (s *ProductService) PublishProduct(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *ProductService) ArchiveProduct(ctx context.Context, id int) error {
+func (s *ProductService) ArchiveProduct(ctx context.Context, id uuid.UUID) error{
 	product, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err

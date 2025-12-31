@@ -406,9 +406,6 @@ func generateRealisticDimensions(category string) (weight, length, width, height
 }
 
 func createProductBuilder(client *ent.Client, num int, brandMap map[string]uuid.UUID, categoryMap map[string]uuid.UUID) *ent.ProductCreate {
-	// Generate unique SKU and slug
-	sku := fmt.Sprintf("SKU-%08d", num)
-
 	// Select a random leaf category for product assignment
 	leafCategories := getLeafCategories()
 	selectedCategory := leafCategories[rand.IntN(len(leafCategories))]
@@ -422,8 +419,8 @@ func createProductBuilder(client *ent.Client, num int, brandMap map[string]uuid.
 	productName := generateProductName(selectedBrand, selectedCategory)
 	slug := fmt.Sprintf("%s-%d", strings.ToLower(strings.ReplaceAll(productName, " ", "-")), num)
 
-	// Generate realistic price based on category
-	price := generateRealisticPrice(selectedCategory)
+	// Generate realistic price based on category (now called basePrice)
+	basePrice := generateRealisticPrice(selectedCategory)
 
 	// Generate realistic description
 	description := generateProductDescription(selectedCategory, selectedBrand)
@@ -454,12 +451,19 @@ func createProductBuilder(client *ent.Client, num int, brandMap map[string]uuid.
 	createdAt := time.Now().Add(-time.Duration(rand.IntN(365)) * 24 * time.Hour)
 	updatedAt := createdAt.Add(time.Duration(rand.IntN(100)) * 24 * time.Hour)
 
-	return client.Product.Create().
-		SetSku(sku).
+	// Generate random stock quantity (optional - 50% chance of having stock for non-variant products)
+	var stockQuantity *int
+	if rand.Float64() < 0.5 {
+		stock := rand.IntN(100) + 1 // 1-100 units
+		stockQuantity = &stock
+	}
+
+	builder := client.Product.Create().
 		SetSlug(slug).
 		SetName(productName).
-		SetPrice(price).
+		SetBasePrice(basePrice).
 		SetDescription(description).
+		SetLowStockThreshold(10). // Default threshold
 		SetWeight(weight).
 		SetLength(length).
 		SetWidth(width).
@@ -470,6 +474,13 @@ func createProductBuilder(client *ent.Client, num int, brandMap map[string]uuid.
 		SetBrandID(brandID).
 		SetCreatedAt(createdAt).
 		SetUpdatedAt(updatedAt)
+
+	// Set stock quantity if it exists (for non-variant products)
+	if stockQuantity != nil {
+		builder = builder.SetStockQuantity(*stockQuantity)
+	}
+
+	return builder
 }
 
 func generateProductName(brandName, category string) string {

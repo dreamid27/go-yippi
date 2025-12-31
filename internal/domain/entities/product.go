@@ -19,22 +19,23 @@ const (
 
 // Product represents a product domain entity
 type Product struct {
-	ID          int
-	SKU         string
-	Slug        string
-	Name        string
-	Price       float64
-	Description string
-	Weight      int           // in grams
-	Length      int           // in cm
-	Width       int           // in cm
-	Height      int           // in cm
-	ImageURLs   []string      // access links to product images
-	Status      ProductStatus
-	CategoryID  *uuid.UUID    // optional category reference
-	BrandID     *uuid.UUID    // optional brand association
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID                 uuid.UUID
+	Slug               string
+	Name               string
+	BasePrice          float64
+	Description        string
+	StockQuantity      *int          // optional, for non-variant products
+	LowStockThreshold  int           // default 10
+	Weight             int           // in grams
+	Length             int           // in cm
+	Width              int           // in cm
+	Height             int           // in cm
+	ImageURLs          []string      // access links to product images
+	Status             ProductStatus
+	CategoryID         *uuid.UUID    // optional category reference
+	BrandID            *uuid.UUID    // optional brand association
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 // IsValid checks if the product status is valid

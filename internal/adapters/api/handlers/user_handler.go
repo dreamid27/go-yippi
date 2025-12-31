@@ -10,6 +10,7 @@ import (
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 )
 
 // UserHandler handles HTTP requests for users
@@ -92,7 +93,7 @@ func (h *UserHandler) CreateUser(ctx context.Context, input *dto.CreateUserReque
 	}
 
 	resp := &dto.UserResponse{}
-	resp.Body.ID = user.ID
+	resp.Body.ID = user.ID.String()
 	resp.Body.Email = user.Email
 	resp.Body.Name = user.Name
 	resp.Body.Phone = user.Phone
@@ -109,29 +110,30 @@ func (h *UserHandler) GetUsers(ctx context.Context, input *struct{}) (*dto.ListU
 	}
 
 	resp := &dto.ListUsersResponse{}
-	resp.Body.Users = make([]struct {
-		ID       int    `json:"id"`
-		Email    string `json:"email"`
-		Name     string `json:"name"`
-		Phone    string `json:"phone,omitempty"`
-		Role     string `json:"role"`
-		IsActive bool   `json:"is_active"`
-	}, len(users))
+	resp.Body.Users = make([]dto.UserListItem, len(users))
 
 	for i, user := range users {
-		resp.Body.Users[i].ID = user.ID
-		resp.Body.Users[i].Email = user.Email
-		resp.Body.Users[i].Name = user.Name
-		resp.Body.Users[i].Phone = user.Phone
-		resp.Body.Users[i].Role = string(user.Role)
-		resp.Body.Users[i].IsActive = user.IsActive
+		resp.Body.Users[i] = dto.UserListItem{
+			ID:       user.ID.String(),
+			Email:    user.Email,
+			Name:     user.Name,
+			Phone:    user.Phone,
+			Role:     string(user.Role),
+			IsActive: user.IsActive,
+		}
 	}
 
 	return resp, nil
 }
 
 func (h *UserHandler) GetUser(ctx context.Context, input *dto.GetUserRequest) (*dto.UserResponse, error) {
-	user, err := h.service.GetUser(ctx, input.ID)
+	// Parse UUID from string
+	userID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid user ID UUID format", err)
+	}
+
+	user, err := h.service.GetUser(ctx, userID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("User not found")
@@ -140,7 +142,7 @@ func (h *UserHandler) GetUser(ctx context.Context, input *dto.GetUserRequest) (*
 	}
 
 	resp := &dto.UserResponse{}
-	resp.Body.ID = user.ID
+	resp.Body.ID = user.ID.String()
 	resp.Body.Email = user.Email
 	resp.Body.Name = user.Name
 	resp.Body.Phone = user.Phone
@@ -151,8 +153,14 @@ func (h *UserHandler) GetUser(ctx context.Context, input *dto.GetUserRequest) (*
 }
 
 func (h *UserHandler) UpdateUser(ctx context.Context, input *dto.UpdateUserRequest) (*dto.UserResponse, error) {
+	// Parse UUID from string
+	userID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid user ID UUID format", err)
+	}
+
 	user := &entities.User{
-		ID:    input.ID,
+		ID:    userID,
 		Email: input.Body.Email,
 		Name:  input.Body.Name,
 		Phone: input.Body.Phone,
@@ -168,7 +176,7 @@ func (h *UserHandler) UpdateUser(ctx context.Context, input *dto.UpdateUserReque
 		user.IsActive = *input.Body.IsActive
 	}
 
-	err := h.service.UpdateUser(ctx, user)
+	err = h.service.UpdateUser(ctx, user)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("User not found")
@@ -177,7 +185,7 @@ func (h *UserHandler) UpdateUser(ctx context.Context, input *dto.UpdateUserReque
 	}
 
 	resp := &dto.UserResponse{}
-	resp.Body.ID = user.ID
+	resp.Body.ID = user.ID.String()
 	resp.Body.Email = user.Email
 	resp.Body.Name = user.Name
 	resp.Body.Phone = user.Phone
@@ -188,7 +196,13 @@ func (h *UserHandler) UpdateUser(ctx context.Context, input *dto.UpdateUserReque
 }
 
 func (h *UserHandler) DeleteUser(ctx context.Context, input *dto.DeleteUserRequest) (*struct{}, error) {
-	err := h.service.DeleteUser(ctx, input.ID)
+	// Parse UUID from string
+	userID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid user ID UUID format", err)
+	}
+
+	err = h.service.DeleteUser(ctx, userID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("User not found")

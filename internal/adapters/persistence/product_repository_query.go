@@ -109,17 +109,15 @@ func (r *ProductRepositoryImpl) buildFilterPredicates(filters []entities.Filter)
 func (r *ProductRepositoryImpl) buildSingleFilterPredicate(filter entities.Filter) (predicate.Product, error) {
 	switch filter.Field {
 	case "id":
-		return r.buildIntFilter(filter, product.ID)
-	case "sku":
-		return r.buildStringFilter(filter, product.Sku)
+		return r.buildUUIDFilter(filter, product.ID)
 	case "slug":
 		return r.buildStringFilter(filter, product.Slug)
 	case "name":
 		return r.buildStringFilter(filter, product.Name)
 	case "description":
 		return r.buildStringFilter(filter, product.Description)
-	case "price":
-		return r.buildFloatFilter(filter, product.Price)
+	case "base_price":
+		return r.buildFloatFilter(filter, product.BasePrice)
 	case "weight":
 		return r.buildIntFilter(filter, product.Weight)
 	case "length":
@@ -140,6 +138,48 @@ func (r *ProductRepositoryImpl) buildSingleFilterPredicate(filter entities.Filte
 		return r.buildTimeFilter(filter, product.UpdatedAt)
 	default:
 		return nil, fmt.Errorf("unsupported filter field: %s", filter.Field)
+	}
+}
+
+// buildUUIDFilter builds predicates for UUID fields
+func (r *ProductRepositoryImpl) buildUUIDFilter(filter entities.Filter, fieldFunc func(uuid.UUID) predicate.Product) (predicate.Product, error) {
+	var uuidVal uuid.UUID
+	var err error
+
+	switch v := filter.Value.(type) {
+	case string:
+		uuidVal, err = uuid.Parse(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid UUID value: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("invalid value type for UUID filter: %T", filter.Value)
+	}
+
+	switch filter.Operator {
+	case entities.OpEqual:
+		return fieldFunc(uuidVal), nil
+	case entities.OpNotEqual:
+		return product.Not(fieldFunc(uuidVal)), nil
+	case entities.OpIn:
+		vals, ok := filter.Value.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("in operator requires array value")
+		}
+		uuidVals := make([]uuid.UUID, len(vals))
+		for i, v := range vals {
+			str, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid value in array: %T", v)
+			}
+			uuidVals[i], err = uuid.Parse(str)
+			if err != nil {
+				return nil, fmt.Errorf("invalid UUID in array: %w", err)
+			}
+		}
+		return product.IDIn(uuidVals...), nil
+	default:
+		return nil, fmt.Errorf("unsupported operator %s for UUID field", filter.Operator)
 	}
 }
 
@@ -185,7 +225,14 @@ func (r *ProductRepositoryImpl) buildIntFilter(filter entities.Filter, fieldFunc
 			}
 			intVals[i] = int(f)
 		}
-		return product.IDIn(intVals...), nil
+		// Use SQL IN for integer fields (not ID field - that uses buildUUIDFilter)
+		return func(s *sql.Selector) {
+			args := make([]interface{}, len(intVals))
+			for i, v := range intVals {
+				args[i] = v
+			}
+			s.Where(sql.In(filter.Field, args...))
+		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported operator %s for int field", filter.Operator)
 	}
@@ -204,13 +251,13 @@ func (r *ProductRepositoryImpl) buildFloatFilter(filter entities.Filter, fieldFu
 	case entities.OpNotEqual:
 		return product.Not(fieldFunc(val)), nil
 	case entities.OpGreaterThan:
-		return product.PriceGT(val), nil
+		return product.BasePriceGT(val), nil
 	case entities.OpGreaterThanOrEqual:
-		return product.PriceGTE(val), nil
+		return product.BasePriceGTE(val), nil
 	case entities.OpLessThan:
-		return product.PriceLT(val), nil
+		return product.BasePriceLT(val), nil
 	case entities.OpLessThanOrEqual:
-		return product.PriceLTE(val), nil
+		return product.BasePriceLTE(val), nil
 	default:
 		return nil, fmt.Errorf("unsupported operator %s for float field", filter.Operator)
 	}
@@ -520,11 +567,6 @@ func (r *ProductRepositoryImpl) getSortOrderFunc(field string, order entities.So
 			return product.ByID(sql.OrderDesc())
 		}
 		return product.ByID(sql.OrderAsc())
-	case "sku":
-		if desc {
-			return product.BySku(sql.OrderDesc())
-		}
-		return product.BySku(sql.OrderAsc())
 	case "slug":
 		if desc {
 			return product.BySlug(sql.OrderDesc())
@@ -535,11 +577,11 @@ func (r *ProductRepositoryImpl) getSortOrderFunc(field string, order entities.So
 			return product.ByName(sql.OrderDesc())
 		}
 		return product.ByName(sql.OrderAsc())
-	case "price":
+	case "base_price":
 		if desc {
-			return product.ByPrice(sql.OrderDesc())
+			return product.ByBasePrice(sql.OrderDesc())
 		}
-		return product.ByPrice(sql.OrderAsc())
+		return product.ByBasePrice(sql.OrderAsc())
 	case "weight":
 		if desc {
 			return product.ByWeight(sql.OrderDesc())

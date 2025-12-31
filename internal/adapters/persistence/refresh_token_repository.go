@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/refreshtoken"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/user"
@@ -63,7 +64,7 @@ func (r *RefreshTokenRepository) FindByToken(ctx context.Context, tokenStr strin
 	}
 
 	// Get UserID from the loaded User edge
-	userID := 0
+	var userID uuid.UUID
 	if found.Edges.User != nil {
 		userID = found.Edges.User.ID
 	}
@@ -102,7 +103,7 @@ func (r *RefreshTokenRepository) Revoke(ctx context.Context, tokenStr string) er
 }
 
 // RevokeAllForUser marks all refresh tokens for a user as revoked
-func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID int) error {
+func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID uuid.UUID) error {
 	now := time.Now()
 
 	_, err := r.client.RefreshToken.

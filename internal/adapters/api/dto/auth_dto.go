@@ -34,7 +34,7 @@ type LogoutRequest struct {
 
 // UserData represents user information in auth responses
 type UserData struct {
-	ID       int    `json:"id" doc:"User unique identifier" example:"1"`
+	ID       string `json:"id" doc:"User unique identifier (UUID)" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Email    string `json:"email" doc:"User email address" example:"user@example.com"`
 	Name     string `json:"name" doc:"User full name" example:"John Doe"`
 	Phone    string `json:"phone" doc:"User phone number" example:"+628123456789"`

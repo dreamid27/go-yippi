@@ -57,17 +57,6 @@ func (h *ProductHandler) RegisterRoutes(api huma.API) {
 		Errors:      []int{http.StatusNotFound, http.StatusInternalServerError},
 	}, h.GetProduct)
 
-	// Get product by SKU
-	huma.Register(api, huma.Operation{
-		OperationID: "get-product-by-sku",
-		Method:      http.MethodGet,
-		Path:        "/products/sku/{sku}",
-		Summary:     "Get a product by SKU",
-		Description: "Retrieves a product by its Stock Keeping Unit",
-		Tags:        []string{"Products"},
-		Errors:      []int{http.StatusNotFound, http.StatusInternalServerError},
-	}, h.GetProductBySKU)
-
 	// Get product by slug
 	huma.Register(api, huma.Operation{
 		OperationID: "get-product-by-slug",
@@ -138,9 +127,8 @@ func (h *ProductHandler) RegisterRoutes(api huma.API) {
 
 func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreateProductRequest) (*dto.ProductResponse, error) {
 	product := &entities.Product{
-		SKU:         input.Body.SKU,
 		Name:        input.Body.Name,
-		Price:       input.Body.Price,
+		BasePrice:   input.Body.BasePrice,
 		Description: input.Body.Description,
 	}
 
@@ -255,11 +243,10 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 
 	for i, product := range result.Products {
 		listItem := dto.ProductListItem{
-			ID:          product.ID,
-			SKU:         product.SKU,
+			ID:          product.ID.String(),
 			Slug:        product.Slug,
 			Name:        product.Name,
-			Price:       product.Price,
+			BasePrice:   product.BasePrice,
 			Description: product.Description,
 			Weight:      product.Weight,
 			Length:      product.Length,
@@ -297,25 +284,16 @@ func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProd
 }
 
 func (h *ProductHandler) GetProduct(ctx context.Context, input *dto.GetProductRequest) (*dto.ProductResponse, error) {
-	product, err := h.service.GetProduct(ctx, input.ID)
+	// Parse UUID from string
+	productID, err := uuid.Parse(input.ID)
 	if err != nil {
-		if errors.Is(err, domainErrors.ErrNotFound) {
-			return nil, huma.Error404NotFound("Product not found")
-		}
-		return nil, huma.Error500InternalServerError("Failed to get product", err)
+		return nil, huma.Error400BadRequest("Invalid product ID UUID format", err)
 	}
 
-	return h.mapToResponse(product), nil
-}
-
-func (h *ProductHandler) GetProductBySKU(ctx context.Context, input *dto.GetProductBySKURequest) (*dto.ProductResponse, error) {
-	product, err := h.service.GetProductBySKU(ctx, input.SKU)
+	product, err := h.service.GetProduct(ctx, productID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("Product not found")
-		}
-		if errors.Is(err, domainErrors.ErrInvalidInput) {
-			return nil, huma.Error400BadRequest("Invalid SKU", err)
 		}
 		return nil, huma.Error500InternalServerError("Failed to get product", err)
 	}
@@ -348,12 +326,11 @@ func (h *ProductHandler) ListProductsByStatus(ctx context.Context, input *dto.Li
 	resp.Body.Products = make([]dto.ProductListItem, len(products))
 
 	for i, product := range products {
-		resp.Body.Products[i] = dto.ProductListItem{
-			ID:          product.ID,
-			SKU:         product.SKU,
+		listItem := dto.ProductListItem{
+			ID:          product.ID.String(),
 			Slug:        product.Slug,
 			Name:        product.Name,
-			Price:       product.Price,
+			BasePrice:   product.BasePrice,
 			Description: product.Description,
 			Weight:      product.Weight,
 			Length:      product.Length,
@@ -364,17 +341,34 @@ func (h *ProductHandler) ListProductsByStatus(ctx context.Context, input *dto.Li
 			CreatedAt:   product.CreatedAt,
 			UpdatedAt:   product.UpdatedAt,
 		}
+
+		// Convert UUID pointers to string pointers
+		if product.CategoryID != nil {
+			categoryIDStr := product.CategoryID.String()
+			listItem.CategoryID = &categoryIDStr
+		}
+		if product.BrandID != nil {
+			brandIDStr := product.BrandID.String()
+			listItem.BrandID = &brandIDStr
+		}
+
+		resp.Body.Products[i] = listItem
 	}
 
 	return resp, nil
 }
 
 func (h *ProductHandler) UpdateProduct(ctx context.Context, input *dto.UpdateProductRequest) (*dto.ProductResponse, error) {
+	// Parse UUID from string
+	productID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid product ID UUID format", err)
+	}
+
 	product := &entities.Product{
-		ID:          input.ID,
-		SKU:         input.Body.SKU,
+		ID:          productID,
 		Name:        input.Body.Name,
-		Price:       input.Body.Price,
+		BasePrice:   input.Body.BasePrice,
 		Description: input.Body.Description,
 	}
 
@@ -425,7 +419,7 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, input *dto.UpdatePro
 		product.BrandID = &brandUUID
 	}
 
-	err := h.service.UpdateProduct(ctx, product)
+	err = h.service.UpdateProduct(ctx, product)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("Product not found")
@@ -443,7 +437,13 @@ func (h *ProductHandler) UpdateProduct(ctx context.Context, input *dto.UpdatePro
 }
 
 func (h *ProductHandler) PublishProduct(ctx context.Context, input *dto.PublishProductRequest) (*dto.ProductResponse, error) {
-	err := h.service.PublishProduct(ctx, input.ID)
+	// Parse UUID from string
+	productID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid product ID UUID format", err)
+	}
+
+	err = h.service.PublishProduct(ctx, productID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("Product not found")
@@ -454,7 +454,7 @@ func (h *ProductHandler) PublishProduct(ctx context.Context, input *dto.PublishP
 		return nil, huma.Error500InternalServerError("Failed to publish product", err)
 	}
 
-	product, err := h.service.GetProduct(ctx, input.ID)
+	product, err := h.service.GetProduct(ctx, productID)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to get updated product", err)
 	}
@@ -463,7 +463,13 @@ func (h *ProductHandler) PublishProduct(ctx context.Context, input *dto.PublishP
 }
 
 func (h *ProductHandler) ArchiveProduct(ctx context.Context, input *dto.ArchiveProductRequest) (*dto.ProductResponse, error) {
-	err := h.service.ArchiveProduct(ctx, input.ID)
+	// Parse UUID from string
+	productID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid product ID UUID format", err)
+	}
+
+	err = h.service.ArchiveProduct(ctx, productID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("Product not found")
@@ -471,7 +477,7 @@ func (h *ProductHandler) ArchiveProduct(ctx context.Context, input *dto.ArchiveP
 		return nil, huma.Error500InternalServerError("Failed to archive product", err)
 	}
 
-	product, err := h.service.GetProduct(ctx, input.ID)
+	product, err := h.service.GetProduct(ctx, productID)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to get updated product", err)
 	}
@@ -480,7 +486,13 @@ func (h *ProductHandler) ArchiveProduct(ctx context.Context, input *dto.ArchiveP
 }
 
 func (h *ProductHandler) DeleteProduct(ctx context.Context, input *dto.DeleteProductRequest) (*struct{}, error) {
-	err := h.service.DeleteProduct(ctx, input.ID)
+	// Parse UUID from string
+	productID, err := uuid.Parse(input.ID)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid product ID UUID format", err)
+	}
+
+	err = h.service.DeleteProduct(ctx, productID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("Product not found")
@@ -494,11 +506,10 @@ func (h *ProductHandler) DeleteProduct(ctx context.Context, input *dto.DeletePro
 // mapToResponse converts domain entity to DTO response
 func (h *ProductHandler) mapToResponse(product *entities.Product) *dto.ProductResponse {
 	resp := &dto.ProductResponse{}
-	resp.Body.ID = product.ID
-	resp.Body.SKU = product.SKU
+	resp.Body.ID = product.ID.String()
 	resp.Body.Slug = product.Slug
 	resp.Body.Name = product.Name
-	resp.Body.Price = product.Price
+	resp.Body.BasePrice = product.BasePrice
 	resp.Body.Description = product.Description
 	resp.Body.Weight = product.Weight
 	resp.Body.Length = product.Length

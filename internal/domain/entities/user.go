@@ -1,6 +1,10 @@
 package entities
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // UserRole represents the role of a user
 type UserRole string
@@ -12,7 +16,7 @@ const (
 
 // User represents a domain entity
 type User struct {
-	ID           int
+	ID           uuid.UUID
 	Email        string
 	PasswordHash string
 	Name         string

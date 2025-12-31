@@ -13,7 +13,7 @@ type CreateUserRequest struct {
 // UserResponse defines the response for user operations
 type UserResponse struct {
 	Body struct {
-		ID       int    `json:"id"`
+		ID       string `json:"id" doc:"User ID (UUID)"`
 		Email    string `json:"email"`
 		Name     string `json:"name"`
 		Phone    string `json:"phone,omitempty"`
@@ -24,26 +24,29 @@ type UserResponse struct {
 
 // GetUserRequest defines the request for getting a single user
 type GetUserRequest struct {
-	ID int `path:"id" doc:"User ID"`
+	ID string `path:"id" doc:"User ID (UUID)"`
+}
+
+// UserListItem represents a user in a list response
+type UserListItem struct {
+	ID       string `json:"id" doc:"User ID (UUID)"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Phone    string `json:"phone,omitempty"`
+	Role     string `json:"role"`
+	IsActive bool   `json:"is_active"`
 }
 
 // ListUsersResponse defines the response for listing users
 type ListUsersResponse struct {
 	Body struct {
-		Users []struct {
-			ID       int    `json:"id"`
-			Email    string `json:"email"`
-			Name     string `json:"name"`
-			Phone    string `json:"phone,omitempty"`
-			Role     string `json:"role"`
-			IsActive bool   `json:"is_active"`
-		} `json:"users"`
+		Users []UserListItem `json:"users"`
 	}
 }
 
 // UpdateUserRequest defines the request for updating a user
 type UpdateUserRequest struct {
-	ID   int `path:"id" doc:"User ID"`
+	ID   string `path:"id" doc:"User ID (UUID)"`
 	Body struct {
 		Email    string `json:"email" format:"email" doc:"User email"`
 		Name     string `json:"name" minLength:"1" doc:"User name"`
@@ -55,5 +58,5 @@ type UpdateUserRequest struct {
 
 // DeleteUserRequest defines the request for deleting a user
 type DeleteUserRequest struct {
-	ID int `path:"id" doc:"User ID"`
+	ID string `path:"id" doc:"User ID (UUID)"`
 }

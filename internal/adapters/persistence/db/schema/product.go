@@ -17,10 +17,9 @@ type Product struct {
 // Fields of the Product.
 func (Product) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("sku").
-			NotEmpty().
-			Unique().
-			Comment("Stock Keeping Unit"),
+		field.UUID("id", uuid.UUID{}).
+			Default(uuid.New).
+			StorageKey("id"),
 
 		field.String("slug").
 			NotEmpty().
@@ -31,13 +30,24 @@ func (Product) Fields() []ent.Field {
 			NotEmpty().
 			Comment("Product name"),
 
-		field.Float("price").
+		field.Float("base_price").
 			Positive().
-			Comment("Product price"),
+			Comment("Base price for price calculation with variants"),
 
 		field.Text("description").
 			Optional().
 			Comment("Product description"),
+
+		field.Int("stock_quantity").
+			NonNegative().
+			Optional().
+			Nillable().
+			Comment("Stock for non-variant products, NULL for variant products"),
+
+		field.Int("low_stock_threshold").
+			NonNegative().
+			Default(10).
+			Comment("Alert when stock below this number"),
 
 		field.Int("weight").
 			NonNegative().
@@ -105,5 +115,8 @@ func (Product) Edges() []ent.Edge {
 			Ref("products").
 			Unique().
 			Field("brand_id"),
+
+		// One-to-many to ProductVariant
+		edge.To("variants", ProductVariant.Type),
 	}
 }

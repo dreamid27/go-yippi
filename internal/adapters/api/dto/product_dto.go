@@ -7,10 +7,9 @@ import (
 // CreateProductRequest defines the request body for creating a product
 type CreateProductRequest struct {
 	Body struct {
-		SKU         string     `json:"sku" minLength:"1" doc:"Stock Keeping Unit (must be unique)"`
 		Slug        *string    `json:"slug,omitempty" minLength:"1" doc:"URL-friendly identifier (optional, auto-generated from name if not provided)"`
 		Name        string     `json:"name" minLength:"1" doc:"Product name"`
-		Price       float64    `json:"price" minimum:"0.01" doc:"Product price"`
+		BasePrice   float64    `json:"base_price" minimum:"0.01" doc:"Base product price"`
 		Description string     `json:"description" doc:"Product description"`
 		Weight      *int       `json:"weight,omitempty" minimum:"0" doc:"Weight in grams for courier calculation (optional)"`
 		Length      *int       `json:"length,omitempty" minimum:"0" doc:"Length in cm (optional)"`
@@ -26,11 +25,10 @@ type CreateProductRequest struct {
 // ProductResponse defines the response for product operations
 type ProductResponse struct {
 	Body struct {
-		ID          int        `json:"id"`
-		SKU         string     `json:"sku"`
+		ID          string     `json:"id"`
 		Slug        string     `json:"slug"`
 		Name        string     `json:"name"`
-		Price       float64    `json:"price"`
+		BasePrice   float64    `json:"base_price"`
 		Description string     `json:"description"`
 		Weight      int        `json:"weight"`
 		Length      int        `json:"length"`
@@ -47,12 +45,7 @@ type ProductResponse struct {
 
 // GetProductRequest defines the request for getting a single product
 type GetProductRequest struct {
-	ID int `path:"id" doc:"Product ID"`
-}
-
-// GetProductBySKURequest defines the request for getting a product by SKU
-type GetProductBySKURequest struct {
-	SKU string `path:"sku" doc:"Product SKU"`
+	ID string `path:"id" doc:"Product ID (UUID)"`
 }
 
 // GetProductBySlugRequest defines the request for getting a product by slug
@@ -62,11 +55,10 @@ type GetProductBySlugRequest struct {
 
 // ProductListItem represents a product in a list response
 type ProductListItem struct {
-	ID          int        `json:"id" doc:"Product ID"`
-	SKU         string     `json:"sku" doc:"Stock Keeping Unit"`
+	ID          string     `json:"id" doc:"Product ID (UUID)"`
 	Slug        string     `json:"slug" doc:"URL-friendly identifier"`
 	Name        string     `json:"name" doc:"Product name"`
-	Price       float64    `json:"price" doc:"Product price"`
+	BasePrice   float64    `json:"base_price" doc:"Base product price"`
 	Description string     `json:"description" doc:"Product description"`
 	Weight      int        `json:"weight" doc:"Weight in grams"`
 	Length      int        `json:"length" doc:"Length in cm"`
@@ -123,12 +115,11 @@ type ListProductsByStatusRequest struct {
 
 // UpdateProductRequest defines the request for updating a product
 type UpdateProductRequest struct {
-	ID   int `path:"id" doc:"Product ID"`
+	ID   string `path:"id" doc:"Product ID (UUID)"`
 	Body struct {
-		SKU         string     `json:"sku" minLength:"1" doc:"Stock Keeping Unit (must be unique)"`
 		Slug        *string    `json:"slug,omitempty" minLength:"1" doc:"URL-friendly identifier (optional, auto-generated from name if not provided)"`
 		Name        string     `json:"name" minLength:"1" doc:"Product name"`
-		Price       float64    `json:"price" minimum:"0.01" doc:"Product price"`
+		BasePrice   float64    `json:"base_price" minimum:"0.01" doc:"Base product price"`
 		Description string     `json:"description" doc:"Product description"`
 		Weight      *int       `json:"weight,omitempty" minimum:"0" doc:"Weight in grams for courier calculation (optional)"`
 		Length      *int       `json:"length,omitempty" minimum:"0" doc:"Length in cm (optional)"`
@@ -143,15 +134,15 @@ type UpdateProductRequest struct {
 
 // DeleteProductRequest defines the request for deleting a product
 type DeleteProductRequest struct {
-	ID int `path:"id" doc:"Product ID"`
+	ID string `path:"id" doc:"Product ID (UUID)"`
 }
 
 // PublishProductRequest defines the request for publishing a product
 type PublishProductRequest struct {
-	ID int `path:"id" doc:"Product ID"`
+	ID string `path:"id" doc:"Product ID (UUID)"`
 }
 
 // ArchiveProductRequest defines the request for archiving a product
 type ArchiveProductRequest struct {
-	ID int `path:"id" doc:"Product ID"`
+	ID string `path:"id" doc:"Product ID (UUID)"`
 }

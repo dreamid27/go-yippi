@@ -189,11 +189,14 @@ func (s *AuthServiceImpl) ValidateToken(ctx context.Context, tokenString string)
 	}
 
 	// Extract user ID from claims
-	userIDFloat, ok := claims["user_id"].(float64)
+	userIDStr, ok := claims["user_id"].(string)
 	if !ok {
 		return nil, domainErrors.NewValidationError("access_token", "invalid user_id in token")
 	}
-	userID := int(userIDFloat)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return nil, domainErrors.NewValidationError("access_token", "invalid user_id format in token")
+	}
 
 	// Get user from repository
 	user, err := s.userRepo.GetByID(ctx, userID)
@@ -216,7 +219,7 @@ func (s *AuthServiceImpl) generateAccessToken(user *entities.User) (string, erro
 
 	// Create JWT claims
 	claims := jwt.MapClaims{
-		"user_id": user.ID,
+		"user_id": user.ID.String(),
 		"email":   user.Email,
 		"role":    user.Role,
 		"exp":     expiresAt.Unix(),
@@ -236,7 +239,7 @@ func (s *AuthServiceImpl) generateAccessToken(user *entities.User) (string, erro
 }
 
 // generateRefreshToken generates a refresh token and stores it in the database
-func (s *AuthServiceImpl) generateRefreshToken(ctx context.Context, userID int) (string, error) {
+func (s *AuthServiceImpl) generateRefreshToken(ctx context.Context, userID uuid.UUID) (string, error) {
 	// Generate UUID token
 	tokenString := uuid.New().String()
 
