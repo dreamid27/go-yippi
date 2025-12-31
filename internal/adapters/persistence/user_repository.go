@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"example.com/go-yippi/internal/adapters/persistence/db/ent"
+	entuser "example.com/go-yippi/internal/adapters/persistence/db/ent/user"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 )
@@ -17,17 +18,38 @@ func NewUserRepository(client *ent.Client) *UserRepositoryImpl {
 	return &UserRepositoryImpl{client: client}
 }
 
+// mapEntUserToDomain converts an Ent User entity to a domain User entity
+func mapEntUserToDomain(u *ent.User) *entities.User {
+	return &entities.User{
+		ID:           u.ID,
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+		Name:         u.Name,
+		Phone:        u.Phone,
+		Role:         u.Role,
+		IsActive:     u.IsActive,
+		CreatedAt:    u.CreatedAt,
+		UpdatedAt:    u.UpdatedAt,
+	}
+}
+
 func (r *UserRepositoryImpl) Create(ctx context.Context, user *entities.User) error {
 	created, err := r.client.User.
 		Create().
+		SetEmail(user.Email).
+		SetPasswordHash(user.PasswordHash).
 		SetName(user.Name).
-		SetAge(user.Age).
+		SetNillablePhone(user.Phone).
+		SetRole(user.Role).
+		SetIsActive(user.IsActive).
 		Save(ctx)
 	if err != nil {
 		return err
 	}
 
 	user.ID = created.ID
+	user.CreatedAt = created.CreatedAt
+	user.UpdatedAt = created.UpdatedAt
 	return nil
 }
 
@@ -40,11 +62,22 @@ func (r *UserRepositoryImpl) GetByID(ctx context.Context, id int) (*entities.Use
 		return nil, err
 	}
 
-	return &entities.User{
-		ID:    found.ID,
-		Name:  found.Name,
-		Age: found.Age,
-	}, nil
+	return mapEntUserToDomain(found), nil
+}
+
+func (r *UserRepositoryImpl) FindByEmail(ctx context.Context, email string) (*entities.User, error) {
+	found, err := r.client.User.
+		Query().
+		Where(entuser.EmailEQ(email)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, domainErrors.NewNotFoundError("User", email)
+		}
+		return nil, err
+	}
+
+	return mapEntUserToDomain(found), nil
 }
 
 func (r *UserRepositoryImpl) List(ctx context.Context) ([]*entities.User, error) {
@@ -55,21 +88,21 @@ func (r *UserRepositoryImpl) List(ctx context.Context) ([]*entities.User, error)
 
 	users := make([]*entities.User, 0, len(list))
 	for _, u := range list {
-		users = append(users, &entities.User{
-			ID:    u.ID,
-			Name:  u.Name,
-			Age: u.Age,
-		})
+		users = append(users, mapEntUserToDomain(u))
 	}
 
 	return users, nil
 }
 
 func (r *UserRepositoryImpl) Update(ctx context.Context, user *entities.User) error {
-	_, err := r.client.User.
+	updated, err := r.client.User.
 		UpdateOneID(user.ID).
+		SetEmail(user.Email).
+		SetPasswordHash(user.PasswordHash).
 		SetName(user.Name).
-		SetAge(user.Age).
+		SetNillablePhone(user.Phone).
+		SetRole(user.Role).
+		SetIsActive(user.IsActive).
 		Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -77,6 +110,7 @@ func (r *UserRepositoryImpl) Update(ctx context.Context, user *entities.User) er
 		}
 		return err
 	}
+	user.UpdatedAt = updated.UpdatedAt
 	return nil
 }
 
