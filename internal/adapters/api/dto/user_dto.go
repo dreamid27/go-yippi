@@ -3,17 +3,22 @@ package dto
 // CreateUserRequest defines the request body for creating a user
 type CreateUserRequest struct {
 	Body struct {
-		Name  string `json:"name" minLength:"1" doc:"User name"`
-		Age int `json:"age" format:"age" doc:"User age"`
+		Email    string `json:"email" format:"email" doc:"User email"`
+		Password string `json:"password" minLength:"6" doc:"User password"`
+		Name     string `json:"name" minLength:"1" doc:"User name"`
+		Phone    string `json:"phone,omitempty" doc:"User phone (optional)"`
 	}
 }
 
 // UserResponse defines the response for user operations
 type UserResponse struct {
 	Body struct {
-		ID    int    `json:"id"`
-		Name  string `json:"name"`
-		Age int `json:"age"`
+		ID       int    `json:"id"`
+		Email    string `json:"email"`
+		Name     string `json:"name"`
+		Phone    string `json:"phone,omitempty"`
+		Role     string `json:"role"`
+		IsActive bool   `json:"is_active"`
 	}
 }
 
@@ -26,9 +31,12 @@ type GetUserRequest struct {
 type ListUsersResponse struct {
 	Body struct {
 		Users []struct {
-			ID    int    `json:"id"`
-			Name  string `json:"name"`
-			Age int `json:"age"`
+			ID       int    `json:"id"`
+			Email    string `json:"email"`
+			Name     string `json:"name"`
+			Phone    string `json:"phone,omitempty"`
+			Role     string `json:"role"`
+			IsActive bool   `json:"is_active"`
 		} `json:"users"`
 	}
 }
@@ -37,8 +45,11 @@ type ListUsersResponse struct {
 type UpdateUserRequest struct {
 	ID   int `path:"id" doc:"User ID"`
 	Body struct {
-		Name  string `json:"name" minLength:"1" doc:"User name"`
-		Age int `json:"age" format:"age" doc:"User age"`
+		Email    string `json:"email" format:"email" doc:"User email"`
+		Name     string `json:"name" minLength:"1" doc:"User name"`
+		Phone    string `json:"phone,omitempty" doc:"User phone (optional)"`
+		Role     string `json:"role,omitempty" enum:"customer,admin" doc:"User role (optional)"`
+		IsActive *bool  `json:"is_active,omitempty" doc:"User active status (optional)"`
 	}
 }
 

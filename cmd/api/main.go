@@ -132,6 +132,11 @@ func main() {
 	brandService := services.NewBrandService(brandRepo)
 	brandHandler := handlers.NewBrandHandler(brandService)
 
+	// Auth dependencies
+	refreshTokenRepo := persistence.NewRefreshTokenRepository(dbClient)
+	authService := services.NewAuthService(userRepo, refreshTokenRepo, cfg.JWT.Secret)
+	authHandler := handlers.NewAuthHandler(authService)
+
 	// Initialize MinIO client (infrastructure)
 	minioClient, err := minio.New(cfg.MinIO.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKeyID, cfg.MinIO.SecretAccessKey, ""),
@@ -174,6 +179,7 @@ func main() {
 	productHandler.RegisterRoutes(humaAPI)
 	brandHandler.RegisterRoutes(humaAPI)
 	fileHandler.RegisterRoutes(humaAPI)
+	authHandler.RegisterRoutes(humaAPI)
 	// Start server
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 	logging.GetGlobalLogger().Info("Starting server",
