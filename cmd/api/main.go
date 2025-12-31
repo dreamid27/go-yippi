@@ -15,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humafiber"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"go.uber.org/zap"
@@ -67,6 +68,14 @@ func main() {
 
 	// Initialize Fiber app
 	app := fiber.New()
+
+	// Add CORS middleware for localhost
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "http://localhost:3000, http://localhost:5173, http://localhost:8000, http://localhost:8080, https://localhost:3000, https://localhost:5173, https://localhost:8000, https://localhost:8080",
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
+		AllowCredentials: true,
+	}))
 
 	// Add logging middleware
 	app.Use(logging.RequestIDMiddleware())
