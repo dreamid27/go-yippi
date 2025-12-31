@@ -78,8 +78,12 @@ func (h *UserHandler) RegisterRoutes(api huma.API) {
 
 func (h *UserHandler) CreateUser(ctx context.Context, input *dto.CreateUserRequest) (*dto.UserResponse, error) {
 	user := &entities.User{
-		Name:  input.Body.Name,
-		Age: input.Body.Age,
+		Email:        input.Body.Email,
+		PasswordHash: input.Body.Password, // Note: This should be hashed in service layer
+		Name:         input.Body.Name,
+		Phone:        input.Body.Phone,
+		Role:         entities.UserRoleCustomer, // Default role
+		IsActive:     true,                      // Default active
 	}
 
 	err := h.service.CreateUser(ctx, user)
@@ -89,8 +93,11 @@ func (h *UserHandler) CreateUser(ctx context.Context, input *dto.CreateUserReque
 
 	resp := &dto.UserResponse{}
 	resp.Body.ID = user.ID
+	resp.Body.Email = user.Email
 	resp.Body.Name = user.Name
-	resp.Body.Age = user.Age
+	resp.Body.Phone = user.Phone
+	resp.Body.Role = string(user.Role)
+	resp.Body.IsActive = user.IsActive
 
 	return resp, nil
 }
@@ -103,15 +110,21 @@ func (h *UserHandler) GetUsers(ctx context.Context, input *struct{}) (*dto.ListU
 
 	resp := &dto.ListUsersResponse{}
 	resp.Body.Users = make([]struct {
-		ID    int    `json:"id"`
-		Name  string `json:"name"`
-		Age int `json:"age"`
+		ID       int    `json:"id"`
+		Email    string `json:"email"`
+		Name     string `json:"name"`
+		Phone    string `json:"phone,omitempty"`
+		Role     string `json:"role"`
+		IsActive bool   `json:"is_active"`
 	}, len(users))
 
 	for i, user := range users {
 		resp.Body.Users[i].ID = user.ID
+		resp.Body.Users[i].Email = user.Email
 		resp.Body.Users[i].Name = user.Name
-		resp.Body.Users[i].Age = user.Age
+		resp.Body.Users[i].Phone = user.Phone
+		resp.Body.Users[i].Role = string(user.Role)
+		resp.Body.Users[i].IsActive = user.IsActive
 	}
 
 	return resp, nil
@@ -128,8 +141,11 @@ func (h *UserHandler) GetUser(ctx context.Context, input *dto.GetUserRequest) (*
 
 	resp := &dto.UserResponse{}
 	resp.Body.ID = user.ID
+	resp.Body.Email = user.Email
 	resp.Body.Name = user.Name
-	resp.Body.Age = user.Age
+	resp.Body.Phone = user.Phone
+	resp.Body.Role = string(user.Role)
+	resp.Body.IsActive = user.IsActive
 
 	return resp, nil
 }
@@ -137,8 +153,19 @@ func (h *UserHandler) GetUser(ctx context.Context, input *dto.GetUserRequest) (*
 func (h *UserHandler) UpdateUser(ctx context.Context, input *dto.UpdateUserRequest) (*dto.UserResponse, error) {
 	user := &entities.User{
 		ID:    input.ID,
+		Email: input.Body.Email,
 		Name:  input.Body.Name,
-		Age: input.Body.Age,
+		Phone: input.Body.Phone,
+	}
+
+	// Set role if provided
+	if input.Body.Role != "" {
+		user.Role = entities.UserRole(input.Body.Role)
+	}
+
+	// Set is_active if provided
+	if input.Body.IsActive != nil {
+		user.IsActive = *input.Body.IsActive
 	}
 
 	err := h.service.UpdateUser(ctx, user)
@@ -151,8 +178,11 @@ func (h *UserHandler) UpdateUser(ctx context.Context, input *dto.UpdateUserReque
 
 	resp := &dto.UserResponse{}
 	resp.Body.ID = user.ID
+	resp.Body.Email = user.Email
 	resp.Body.Name = user.Name
-	resp.Body.Age = user.Age
+	resp.Body.Phone = user.Phone
+	resp.Body.Role = string(user.Role)
+	resp.Body.IsActive = user.IsActive
 
 	return resp, nil
 }

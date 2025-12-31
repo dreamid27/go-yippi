@@ -92,7 +92,7 @@ func (h *AuthHandler) Register(ctx context.Context, input *dto.RegisterRequest) 
 	}
 
 	// Register the user
-	user, err := h.authService.Register(ctx, registerInput)
+	_, err := h.authService.Register(ctx, registerInput)
 	if err != nil {
 		// Check for validation errors
 		if errors.Is(err, domainErrors.ErrInvalidInput) {

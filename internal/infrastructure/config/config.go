@@ -15,6 +15,7 @@ type Config struct {
 	Database       DatabaseConfig
 	MinIO          MinIOConfig
 	Storage        StorageConfig
+	JWT            JWTConfig
 	OpenTelemetry OpenTelemetryConfig
 	Logging        logging.LogConfig
 }
@@ -39,6 +40,10 @@ type MinIOConfig struct {
 
 type StorageConfig struct {
 	Backend string // "database" or "minio"
+}
+
+type JWTConfig struct {
+	Secret string
 }
 
 type OpenTelemetryConfig struct {
@@ -73,6 +78,9 @@ func Load() *Config {
 		},
 		Storage: StorageConfig{
 			Backend: getEnv("STORAGE_BACKEND", "database"),
+		},
+		JWT: JWTConfig{
+			Secret: getEnv("JWT_SECRET", "your-secret-key-change-this-in-production"),
 		},
 		OpenTelemetry: OpenTelemetryConfig{
 			ServiceName:  getEnv("OTEL_SERVICE_NAME", "go-yippi-api"),

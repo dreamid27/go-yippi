@@ -26,7 +26,7 @@ func mapEntUserToDomain(u *ent.User) *entities.User {
 		PasswordHash: u.PasswordHash,
 		Name:         u.Name,
 		Phone:        u.Phone,
-		Role:         u.Role,
+		Role:         entities.UserRole(u.Role),
 		IsActive:     u.IsActive,
 		CreatedAt:    u.CreatedAt,
 		UpdatedAt:    u.UpdatedAt,
@@ -34,15 +34,19 @@ func mapEntUserToDomain(u *ent.User) *entities.User {
 }
 
 func (r *UserRepositoryImpl) Create(ctx context.Context, user *entities.User) error {
-	created, err := r.client.User.
+	builder := r.client.User.
 		Create().
 		SetEmail(user.Email).
 		SetPasswordHash(user.PasswordHash).
 		SetName(user.Name).
-		SetNillablePhone(user.Phone).
-		SetRole(user.Role).
-		SetIsActive(user.IsActive).
-		Save(ctx)
+		SetRole(entuser.Role(user.Role)).
+		SetIsActive(user.IsActive)
+
+	if user.Phone != "" {
+		builder = builder.SetPhone(user.Phone)
+	}
+
+	created, err := builder.Save(ctx)
 	if err != nil {
 		return err
 	}
@@ -95,15 +99,19 @@ func (r *UserRepositoryImpl) List(ctx context.Context) ([]*entities.User, error)
 }
 
 func (r *UserRepositoryImpl) Update(ctx context.Context, user *entities.User) error {
-	updated, err := r.client.User.
+	builder := r.client.User.
 		UpdateOneID(user.ID).
 		SetEmail(user.Email).
 		SetPasswordHash(user.PasswordHash).
 		SetName(user.Name).
-		SetNillablePhone(user.Phone).
-		SetRole(user.Role).
-		SetIsActive(user.IsActive).
-		Save(ctx)
+		SetRole(entuser.Role(user.Role)).
+		SetIsActive(user.IsActive)
+
+	if user.Phone != "" {
+		builder = builder.SetPhone(user.Phone)
+	}
+
+	updated, err := builder.Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return domainErrors.NewNotFoundError("User", user.ID)
