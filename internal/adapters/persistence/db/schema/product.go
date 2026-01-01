@@ -118,5 +118,8 @@ func (Product) Edges() []ent.Edge {
 
 		// One-to-many to ProductVariant
 		edge.To("variants", ProductVariant.Type),
+
+		// One-to-many to OrderItem (order items referencing this product)
+		edge.To("order_items", OrderItem.Type),
 	}
 }
