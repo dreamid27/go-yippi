@@ -137,9 +137,8 @@ func (Order) Edges() []ent.Edge {
 		// TODO: Uncomment when OrderItem schema is created
 		// edge.To("items", OrderItem.Type),
 
-		// TODO: Uncomment when Payment schema is created
-		// edge.To("payment", Payment.Type).
-		// 	Unique(),
+		edge.To("payment", Payment.Type).
+			Unique(),
 	}
 }
 
