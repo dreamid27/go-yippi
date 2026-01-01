@@ -24,6 +24,12 @@ var (
 
 	// ErrInternal indicates an internal server error
 	ErrInternal = errors.New("internal error")
+
+	// ErrInsufficientStock indicates that there is not enough stock
+	ErrInsufficientStock = errors.New("insufficient stock")
+
+	// ErrVariantInactive indicates that the variant is not active
+	ErrVariantInactive = errors.New("variant is inactive")
 )
 
 // NotFoundError represents a resource not found error with additional context
@@ -91,5 +97,49 @@ func NewDuplicateError(resource, field string, value interface{}) error {
 		Resource: resource,
 		Field:    field,
 		Value:    value,
+	}
+}
+
+// InsufficientStockError represents insufficient stock error
+type InsufficientStockError struct {
+	VariantID interface{}
+	Available int
+	Requested int
+}
+
+func (e *InsufficientStockError) Error() string {
+	return fmt.Sprintf("insufficient stock for variant %v: available %d, requested %d", e.VariantID, e.Available, e.Requested)
+}
+
+func (e *InsufficientStockError) Is(target error) bool {
+	return target == ErrInsufficientStock
+}
+
+// NewInsufficientStockError creates a new InsufficientStockError
+func NewInsufficientStockError(variantID interface{}, available, requested int) error {
+	return &InsufficientStockError{
+		VariantID: variantID,
+		Available: available,
+		Requested: requested,
+	}
+}
+
+// VariantInactiveError represents variant inactive error
+type VariantInactiveError struct {
+	VariantID interface{}
+}
+
+func (e *VariantInactiveError) Error() string {
+	return fmt.Sprintf("variant %v is inactive", e.VariantID)
+}
+
+func (e *VariantInactiveError) Is(target error) bool {
+	return target == ErrVariantInactive
+}
+
+// NewVariantInactiveError creates a new VariantInactiveError
+func NewVariantInactiveError(variantID interface{}) error {
+	return &VariantInactiveError{
+		VariantID: variantID,
 	}
 }

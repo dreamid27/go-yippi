@@ -125,8 +125,15 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 
 	productRepo := persistence.NewProductRepository(dbClient)
-	productService := services.NewProductService(productRepo, categoryRepo)
-	productHandler := handlers.NewProductHandler(productService)
+	productVariantRepo := persistence.NewProductVariantRepository(dbClient)
+	priceCalculatorService := services.NewPriceCalculatorService()
+	productService := services.NewProductService(productRepo, categoryRepo, productVariantRepo, priceCalculatorService)
+	productVariantService := services.NewProductVariantService(productVariantRepo, productRepo)
+	productHandler := handlers.NewProductHandler(productService, productVariantService)
+	cartRepo := persistence.NewCartRepository(dbClient)
+	cartService := services.NewCartService(cartRepo, productVariantRepo, productRepo, persistence.NewStockValidatorRepository(dbClient), priceCalculatorService)
+	cartHandler := handlers.NewCartHandler(cartService)
+
 
 	brandRepo := persistence.NewBrandRepository(dbClient)
 	brandService := services.NewBrandService(brandRepo)
@@ -177,6 +184,7 @@ func main() {
 	userHandler.RegisterRoutes(humaAPI)
 	categoryHandler.RegisterRoutes(humaAPI)
 	productHandler.RegisterRoutes(humaAPI)
+	cartHandler.RegisterRoutes(humaAPI)
 	brandHandler.RegisterRoutes(humaAPI)
 	fileHandler.RegisterRoutes(humaAPI)
 	authHandler.RegisterRoutes(humaAPI)

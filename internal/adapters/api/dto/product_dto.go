@@ -7,18 +7,19 @@ import (
 // CreateProductRequest defines the request body for creating a product
 type CreateProductRequest struct {
 	Body struct {
-		Slug        *string    `json:"slug,omitempty" minLength:"1" doc:"URL-friendly identifier (optional, auto-generated from name if not provided)"`
-		Name        string     `json:"name" minLength:"1" doc:"Product name"`
-		BasePrice   float64    `json:"base_price" minimum:"0.01" doc:"Base product price"`
-		Description string     `json:"description" doc:"Product description"`
-		Weight      *int       `json:"weight,omitempty" minimum:"0" doc:"Weight in grams for courier calculation (optional)"`
-		Length      *int       `json:"length,omitempty" minimum:"0" doc:"Length in cm (optional)"`
-		Width       *int       `json:"width,omitempty" minimum:"0" doc:"Width in cm (optional)"`
-		Height      *int       `json:"height,omitempty" minimum:"0" doc:"Height in cm (optional)"`
-		ImageURLs   []string   `json:"image_urls,omitempty" doc:"Access links to product images (optional)"`
-		Status      *string    `json:"status,omitempty" enum:"draft,published,archived" doc:"Product status (optional, defaults to draft)"`
-		CategoryID  *string    `json:"category_id,omitempty" doc:"Category ID (optional UUID)"`
-		BrandID     *string    `json:"brand_id,omitempty" doc:"Brand ID (optional UUID)"`
+		Slug           *string  `json:"slug,omitempty" minLength:"1" doc:"URL-friendly identifier (optional, auto-generated from name if not provided)"`
+		Name           string   `json:"name" minLength:"1" doc:"Product name"`
+		BasePrice      float64  `json:"base_price" minimum:"0.01" doc:"Base product price"`
+		Description    string   `json:"description" doc:"Product description"`
+		Weight         *int     `json:"weight,omitempty" minimum:"0" doc:"Weight in grams for courier calculation (optional)"`
+		Length         *int     `json:"length,omitempty" minimum:"0" doc:"Length in cm (optional)"`
+		Width          *int     `json:"width,omitempty" minimum:"0" doc:"Width in cm (optional)"`
+		Height         *int     `json:"height,omitempty" minimum:"0" doc:"Height in cm (optional)"`
+		ImageURLs      []string `json:"image_urls,omitempty" doc:"Access links to product images (optional)"`
+		Status         *string  `json:"status,omitempty" enum:"draft,published,archived" doc:"Product status (optional, defaults to draft)"`
+		CategoryID     *string  `json:"category_id,omitempty" doc:"Category ID (optional UUID)"`
+		BrandID        *string  `json:"brand_id,omitempty" doc:"Brand ID (optional UUID)"`
+		StockQuantity  *int     `json:"stock_quantity,omitempty" minimum:"0" doc:"Initial stock quantity for auto-created default variant (optional)"`
 	}
 }
 
@@ -145,4 +146,111 @@ type PublishProductRequest struct {
 // ArchiveProductRequest defines the request for archiving a product
 type ArchiveProductRequest struct {
 	ID string `path:"id" doc:"Product ID (UUID)"`
+}
+
+// Phase 2: Search and Variant DTOs
+
+// SearchProductsRequest defines the request for searching products with filters (REQ-9.2)
+type SearchProductsRequest struct {
+	Search     string   `query:"search" doc:"Full-text search query (optional)"`
+	CategoryID *string  `query:"category_id" doc:"Filter by category ID (UUID)"`
+	BrandID    *string  `query:"brand_id" doc:"Filter by brand ID (UUID)"`
+	MinPrice   *float64 `query:"min_price" minimum:"0" doc:"Minimum base price filter"`
+	MaxPrice   *float64 `query:"max_price" minimum:"0" doc:"Maximum base price filter"`
+	Size       *string  `query:"size" doc:"Filter by variant size attribute"`
+	Color      *string  `query:"color" doc:"Filter by variant color attribute"`
+	Status     *string  `query:"status" enum:"published,draft,archived" doc:"Filter by product status"`
+	SortBy     string   `query:"sort_by" default:"created_at" enum:"name,price,created_at,relevance" doc:"Sort field (default: created_at)"`
+	SortOrder  string   `query:"sort_order" default:"desc" enum:"asc,desc" doc:"Sort order (default: desc)"`
+	Page       int      `query:"page" default:"1" minimum:"1" doc:"Page number (default: 1)"`
+	Limit      int      `query:"limit" default:"20" minimum:"1" maximum:"100" doc:"Items per page (default: 20, max: 100)"`
+}
+
+// CategorySummaryDTO represents category summary in product list
+type CategorySummaryDTO struct {
+	ID   string `json:"id" doc:"Category ID (UUID)"`
+	Name string `json:"name" doc:"Category name"`
+	Slug string `json:"slug" doc:"Category slug"`
+}
+
+// BrandSummaryDTO represents brand summary in product list
+type BrandSummaryDTO struct {
+	ID   string `json:"id" doc:"Brand ID (UUID)"`
+	Name string `json:"name" doc:"Brand name"`
+	Slug string `json:"slug" doc:"Brand slug"`
+}
+
+// ProductListItemResponse represents a product in search results (REQ-9.2)
+type ProductListItemResponse struct {
+	ID            string               `json:"id" doc:"Product ID (UUID)"`
+	Slug          string               `json:"slug" doc:"URL-friendly identifier"`
+	Name          string               `json:"name" doc:"Product name"`
+	BasePrice     float64              `json:"base_price" doc:"Base product price"`
+	Description   string               `json:"description" doc:"Product description"`
+	ImageURLs     []string             `json:"image_urls" doc:"Product images"`
+	Status        string               `json:"status" doc:"Product status"`
+	Category      *CategorySummaryDTO  `json:"category,omitempty" doc:"Category information"`
+	Brand         *BrandSummaryDTO     `json:"brand,omitempty" doc:"Brand information"`
+	VariantsCount int                  `json:"variants_count" doc:"Number of variants"`
+	MinPrice      float64              `json:"min_price" doc:"Minimum variant price"`
+	MaxPrice      float64              `json:"max_price" doc:"Maximum variant price"`
+	HasStock      bool                 `json:"has_stock" doc:"Has available stock"`
+}
+
+// PaginationResponse contains pagination metadata (REQ-9.2)
+type PaginationResponse struct {
+	Page       int `json:"page" doc:"Current page number"`
+	Limit      int `json:"limit" doc:"Items per page"`
+	Total      int `json:"total" doc:"Total number of items"`
+	TotalPages int `json:"total_pages" doc:"Total number of pages"`
+}
+
+// ProductSearchResponse defines the response for product search (REQ-9.2)
+type ProductSearchResponse struct {
+	Body struct {
+		Data       []ProductListItemResponse `json:"data" doc:"List of products"`
+		Pagination PaginationResponse        `json:"pagination" doc:"Pagination information"`
+	}
+}
+
+// DimensionsResponse represents product dimensions
+type DimensionsResponse struct {
+	Length int `json:"length" doc:"Length in cm"`
+	Width  int `json:"width" doc:"Width in cm"`
+	Height int `json:"height" doc:"Height in cm"`
+}
+
+// ProductVariantResponse represents a product variant (REQ-9.2)
+type ProductVariantResponse struct {
+	ID              string            `json:"id" doc:"Variant ID (UUID)"`
+	ProductID       string            `json:"product_id" doc:"Product ID (UUID)"`
+	SKU             string            `json:"sku" doc:"Stock Keeping Unit"`
+	Attributes      map[string]string `json:"attributes" doc:"Variant attributes (size, color, etc.)"`
+	StockQuantity   int               `json:"stock_quantity" doc:"Available stock quantity"`
+	PriceAdjustment float64           `json:"price_adjustment" doc:"Price adjustment from base price"`
+	FinalPrice      float64           `json:"final_price" doc:"Calculated final price (base_price + adjustment)"`
+	IsActive        bool              `json:"is_active" doc:"Variant is active"`
+	IsInStock       bool              `json:"is_in_stock" doc:"Variant has stock available"`
+	CreatedAt       time.Time         `json:"created_at" doc:"Creation timestamp"`
+	UpdatedAt       time.Time         `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// ProductDetailResponse defines the response for product detail with variants (REQ-9.2)
+type ProductDetailResponse struct {
+	Body struct {
+		ID          string                   `json:"id" doc:"Product ID (UUID)"`
+		Slug        string                   `json:"slug" doc:"URL-friendly identifier"`
+		Name        string                   `json:"name" doc:"Product name"`
+		BasePrice   float64                  `json:"base_price" doc:"Base product price"`
+		Description string                   `json:"description" doc:"Product description"`
+		ImageURLs   []string                 `json:"image_urls" doc:"Product images"`
+		Status      string                   `json:"status" doc:"Product status"`
+		Weight      int                      `json:"weight" doc:"Weight in grams"`
+		Dimensions  DimensionsResponse       `json:"dimensions" doc:"Product dimensions"`
+		Category    *CategoryResponse        `json:"category,omitempty" doc:"Category information"`
+		Brand       *BrandResponse           `json:"brand,omitempty" doc:"Brand information"`
+		Variants    []ProductVariantResponse `json:"variants" doc:"Product variants"`
+		CreatedAt   time.Time                `json:"created_at" doc:"Creation timestamp"`
+		UpdatedAt   time.Time                `json:"updated_at" doc:"Last update timestamp"`
+	}
 }

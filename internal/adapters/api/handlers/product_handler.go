@@ -15,11 +15,15 @@ import (
 
 // ProductHandler handles HTTP requests for products
 type ProductHandler struct {
-	service ports.ProductService
+	service        ports.ProductService
+	variantService ports.ProductVariantService
 }
 
-func NewProductHandler(service ports.ProductService) *ProductHandler {
-	return &ProductHandler{service: service}
+func NewProductHandler(service ports.ProductService, variantService ports.ProductVariantService) *ProductHandler {
+	return &ProductHandler{
+		service:        service,
+		variantService: variantService,
+	}
 }
 
 // RegisterRoutes registers all product routes with Huma
@@ -35,16 +39,16 @@ func (h *ProductHandler) RegisterRoutes(api huma.API) {
 		Errors:      []int{http.StatusBadRequest, http.StatusConflict, http.StatusInternalServerError},
 	}, h.CreateProduct)
 
-	// Query products with filters, sorting, and pagination
+	// Search products with filters and pagination (Phase 2)
 	huma.Register(api, huma.Operation{
-		OperationID: "query-products",
+		OperationID: "search-products",
 		Method:      http.MethodGet,
 		Path:        "/products",
-		Summary:     "Query products with filtering, sorting, and pagination",
-		Description: "Flexible product search with cursor-based pagination, multiple filter operators, and multi-field sorting",
+		Summary:     "Search products with filtering and pagination",
+		Description: "Search products with full-text search, category/brand/price filters, variant attribute filters, and pagination. Sort by relevance when search query provided.",
 		Tags:        []string{"Products"},
 		Errors:      []int{http.StatusBadRequest, http.StatusInternalServerError},
-	}, h.QueryProducts)
+	}, h.SearchProducts)
 
 	// Get product by ID
 	huma.Register(api, huma.Operation{
@@ -179,6 +183,12 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreatePro
 		product.BrandID = &brandUUID
 	}
 
+	// Handle optional stock quantity for Phase 2
+	if input.Body.StockQuantity != nil {
+		product.StockQuantity = input.Body.StockQuantity
+	}
+
+	// Create product
 	err := h.service.CreateProduct(ctx, product)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrInvalidInput) {
@@ -190,107 +200,159 @@ func (h *ProductHandler) CreateProduct(ctx context.Context, input *dto.CreatePro
 		return nil, huma.Error500InternalServerError("Failed to create product", err)
 	}
 
+	// Phase 2: Auto-create default variant (REQ-9.5)
+	stockQty := 0
+	if product.StockQuantity != nil {
+		stockQty = *product.StockQuantity
+	}
+
+	defaultSKU := "PRODUCT-" + product.Slug
+	isActive := true
+	_, err = h.variantService.CreateVariant(
+		ctx,
+		product.ID,
+		defaultSKU,
+		map[string]string{}, // empty attributes for default variant
+		stockQty,
+		0.0, // no price adjustment for default variant
+		&isActive,
+	)
+	if err != nil {
+		// If variant creation fails, we should probably rollback the product
+		// For now, log the error and continue (product exists without variants)
+		// TODO: Consider using transaction to rollback product creation
+		return nil, huma.Error500InternalServerError("Failed to create default variant", err)
+	}
+
 	return h.mapToResponse(product), nil
 }
 
-func (h *ProductHandler) QueryProducts(ctx context.Context, input *dto.QueryProductsRequest) (*dto.QueryProductsResponse, error) {
-	// Convert DTO to domain entities
-	params := &entities.QueryParams{
-		Filters: make([]entities.Filter, len(input.Filters)),
-		Sort:    make([]entities.SortParam, len(input.Sort)),
-	}
+// SearchProducts handles product search with filters (REQ-9.3)
+func (h *ProductHandler) SearchProducts(ctx context.Context, input *dto.SearchProductsRequest) (*dto.ProductSearchResponse, error) {
+	// Validate and parse UUID filters
+	var categoryUUID, brandUUID *uuid.UUID
 
-	// Convert filters
-	for i, f := range input.Filters {
-		params.Filters[i] = entities.Filter{
-			Field:    f.Field,
-			Operator: entities.FilterOperator(f.Operator),
-			Value:    f.Value,
+	if input.CategoryID != nil && *input.CategoryID != "" {
+		parsed, err := uuid.Parse(*input.CategoryID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid category_id UUID format", err)
 		}
+		categoryUUID = &parsed
 	}
 
-	// Convert sort parameters
-	for i, s := range input.Sort {
-		params.Sort[i] = entities.SortParam{
-			Field: s.Field,
-			Order: entities.SortOrder(s.Order),
+	if input.BrandID != nil && *input.BrandID != "" {
+		parsed, err := uuid.Parse(*input.BrandID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid brand_id UUID format", err)
 		}
+		brandUUID = &parsed
 	}
 
-	// Convert pagination parameters
-	params.Pagination = &entities.PaginationParams{
-		Limit:     input.Limit,
-		Direction: input.Direction,
+	// Build search params
+	params := ports.SearchProductsParams{
+		Search:     input.Search,
+		CategoryID: categoryUUID,
+		BrandID:    brandUUID,
+		MinPrice:   input.MinPrice,
+		MaxPrice:   input.MaxPrice,
+		Size:       input.Size,
+		Color:      input.Color,
+		Status:     input.Status,
+		SortBy:     input.SortBy,
+		SortOrder:  input.SortOrder,
+		Page:       input.Page,
+		Limit:      input.Limit,
 	}
 
-	// Only set cursor if provided
-	if input.Cursor != "" {
-		params.Pagination.Cursor = &input.Cursor
+	// Apply defaults
+	if params.Page == 0 {
+		params.Page = 1
+	}
+	if params.Limit == 0 {
+		params.Limit = 20
+	}
+	if params.SortBy == "" {
+		params.SortBy = "created_at"
+	}
+	if params.SortOrder == "" {
+		params.SortOrder = "desc"
+	}
+
+	// If search query provided, default to relevance sorting
+	if params.Search != "" && input.SortBy == "" {
+		params.SortBy = "relevance"
 	}
 
 	// Call service
-	result, err := h.service.QueryProducts(ctx, params)
+	result, err := h.service.SearchProducts(ctx, params)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrInvalidInput) {
-			return nil, huma.Error400BadRequest("Invalid query parameters", err)
+			return nil, huma.Error400BadRequest("Invalid search parameters", err)
 		}
-		return nil, huma.Error500InternalServerError("Failed to query products", err)
+		return nil, huma.Error500InternalServerError("Failed to search products", err)
 	}
 
 	// Convert to DTO response
-	resp := &dto.QueryProductsResponse{}
-	resp.Body.Data = make([]dto.ProductListItem, len(result.Products))
+	resp := &dto.ProductSearchResponse{}
+	resp.Body.Data = make([]dto.ProductListItemResponse, len(result.Products))
 
 	for i, product := range result.Products {
-		listItem := dto.ProductListItem{
-			ID:          product.ID.String(),
-			Slug:        product.Slug,
-			Name:        product.Name,
-			BasePrice:   product.BasePrice,
-			Description: product.Description,
-			Weight:      product.Weight,
-			Length:      product.Length,
-			Width:       product.Width,
-			Height:      product.Height,
-			ImageURLs:   product.ImageURLs,
-			Status:      string(product.Status),
-			CreatedAt:   product.CreatedAt,
-			UpdatedAt:   product.UpdatedAt,
+		listItem := dto.ProductListItemResponse{
+			ID:            product.ID.String(),
+			Slug:          product.Slug,
+			Name:          product.Name,
+			BasePrice:     product.BasePrice,
+			Description:   product.Description,
+			ImageURLs:     product.ImageURLs,
+			Status:        product.Status,
+			VariantsCount: product.VariantsCount,
+			MinPrice:      product.MinPrice,
+			MaxPrice:      product.MaxPrice,
+			HasStock:      product.HasStock,
 		}
 
-		// Convert UUID pointers to string pointers
-		if product.CategoryID != nil {
-			categoryIDStr := product.CategoryID.String()
-			listItem.CategoryID = &categoryIDStr
+		// Map category summary
+		if product.Category != nil {
+			listItem.Category = &dto.CategorySummaryDTO{
+				ID:   product.Category.ID.String(),
+				Name: product.Category.Name,
+				Slug: product.Category.Slug,
+			}
 		}
-		if product.BrandID != nil {
-			brandIDStr := product.BrandID.String()
-			listItem.BrandID = &brandIDStr
+
+		// Map brand summary
+		if product.Brand != nil {
+			listItem.Brand = &dto.BrandSummaryDTO{
+				ID:   product.Brand.ID.String(),
+				Name: product.Brand.Name,
+				Slug: product.Brand.Slug,
+			}
 		}
 
 		resp.Body.Data[i] = listItem
 	}
 
-	// Convert page info
-	resp.Body.PageInfo = dto.PageInfoDTO{
-		HasNextPage:     result.PageInfo.HasNextPage,
-		HasPreviousPage: result.PageInfo.HasPreviousPage,
-		PreviousCursor:     result.PageInfo.PreviousCursor,
-		NextCursor:       result.PageInfo.NextCursor,
-		TotalCount:      result.PageInfo.TotalCount,
+	// Convert pagination info
+	resp.Body.Pagination = dto.PaginationResponse{
+		Page:       result.Pagination.Page,
+		Limit:      result.Pagination.Limit,
+		Total:      result.Pagination.Total,
+		TotalPages: result.Pagination.TotalPages,
 	}
 
 	return resp, nil
 }
 
-func (h *ProductHandler) GetProduct(ctx context.Context, input *dto.GetProductRequest) (*dto.ProductResponse, error) {
+// GetProduct returns product detail with variants (REQ-9.4)
+func (h *ProductHandler) GetProduct(ctx context.Context, input *dto.GetProductRequest) (*dto.ProductDetailResponse, error) {
 	// Parse UUID from string
 	productID, err := uuid.Parse(input.ID)
 	if err != nil {
 		return nil, huma.Error400BadRequest("Invalid product ID UUID format", err)
 	}
 
-	product, err := h.service.GetProduct(ctx, productID)
+	// Get product with variants
+	productDetail, err := h.service.GetProductWithVariants(ctx, productID)
 	if err != nil {
 		if errors.Is(err, domainErrors.ErrNotFound) {
 			return nil, huma.Error404NotFound("Product not found")
@@ -298,7 +360,7 @@ func (h *ProductHandler) GetProduct(ctx context.Context, input *dto.GetProductRe
 		return nil, huma.Error500InternalServerError("Failed to get product", err)
 	}
 
-	return h.mapToResponse(product), nil
+	return h.mapToDetailResponse(productDetail), nil
 }
 
 func (h *ProductHandler) GetProductBySlug(ctx context.Context, input *dto.GetProductBySlugRequest) (*dto.ProductResponse, error) {
@@ -529,5 +591,73 @@ func (h *ProductHandler) mapToResponse(product *entities.Product) *dto.ProductRe
 	}
 	resp.Body.CreatedAt = product.CreatedAt
 	resp.Body.UpdatedAt = product.UpdatedAt
+	return resp
+}
+
+// mapToDetailResponse converts ProductDetail to ProductDetailResponse (REQ-9.4)
+func (h *ProductHandler) mapToDetailResponse(detail *ports.ProductDetail) *dto.ProductDetailResponse {
+	resp := &dto.ProductDetailResponse{}
+
+	// Map product fields
+	resp.Body.ID = detail.Product.ID.String()
+	resp.Body.Slug = detail.Product.Slug
+	resp.Body.Name = detail.Product.Name
+	resp.Body.BasePrice = detail.Product.BasePrice
+	resp.Body.Description = detail.Product.Description
+	resp.Body.ImageURLs = detail.Product.ImageURLs
+	resp.Body.Status = string(detail.Product.Status)
+	resp.Body.Weight = detail.Product.Weight
+	resp.Body.CreatedAt = detail.Product.CreatedAt
+	resp.Body.UpdatedAt = detail.Product.UpdatedAt
+
+	// Map dimensions
+	resp.Body.Dimensions = dto.DimensionsResponse{
+		Length: detail.Product.Length,
+		Width:  detail.Product.Width,
+		Height: detail.Product.Height,
+	}
+
+	// Map category if exists
+	if detail.Category != nil {
+		categoryResp := &dto.CategoryResponse{}
+		categoryResp.Body.ID = detail.Category.ID.String()
+		categoryResp.Body.Name = detail.Category.Name
+		categoryResp.Body.Slug = entities.GenerateSlug(detail.Category.Name)
+		categoryResp.Body.Description = ""
+		categoryResp.Body.CreatedAt = detail.Category.CreatedAt
+		categoryResp.Body.UpdatedAt = detail.Category.UpdatedAt
+		resp.Body.Category = categoryResp
+	}
+
+	// Map brand if exists
+	if detail.Brand != nil {
+		brandResp := &dto.BrandResponse{}
+		brandResp.Body.ID = detail.Brand.ID
+		brandResp.Body.Name = detail.Brand.Name
+		brandResp.Body.Slug = entities.GenerateSlug(detail.Brand.Name)
+		brandResp.Body.Description = ""
+		brandResp.Body.CreatedAt = detail.Brand.CreatedAt
+		brandResp.Body.UpdatedAt = detail.Brand.UpdatedAt
+		resp.Body.Brand = brandResp
+	}
+
+	// Map variants
+	resp.Body.Variants = make([]dto.ProductVariantResponse, len(detail.Variants))
+	for i, variant := range detail.Variants {
+		resp.Body.Variants[i] = dto.ProductVariantResponse{
+			ID:              variant.ID.String(),
+			ProductID:       detail.Product.ID.String(),
+			SKU:             variant.SKU,
+			Attributes:      variant.Attributes,
+			StockQuantity:   variant.StockQuantity,
+			PriceAdjustment: variant.PriceAdjustment,
+			FinalPrice:      variant.FinalPrice,
+			IsActive:        variant.IsActive,
+			IsInStock:       variant.IsInStock,
+			CreatedAt:       detail.Product.CreatedAt, // TODO: variants should have their own timestamps
+			UpdatedAt:       detail.Product.UpdatedAt,
+		}
+	}
+
 	return resp
 }

@@ -24,10 +24,12 @@ type UpdateBrandRequest struct {
 // BrandResponse defines the response for brand operations
 type BrandResponse struct {
 	Body struct {
-		ID        uuid.UUID `json:"id" doc:"Brand unique identifier"`
-		Name      string    `json:"name" doc:"Brand name"`
-		CreatedAt time.Time `json:"created_at" doc:"Creation timestamp"`
-		UpdatedAt time.Time `json:"updated_at" doc:"Last update timestamp"`
+		ID          uuid.UUID `json:"id" doc:"Brand unique identifier"`
+		Name        string    `json:"name" doc:"Brand name"`
+		Slug        string    `json:"slug" doc:"URL-friendly slug"`
+		Description string    `json:"description,omitempty" doc:"Brand description"`
+		CreatedAt   time.Time `json:"created_at" doc:"Creation timestamp"`
+		UpdatedAt   time.Time `json:"updated_at" doc:"Last update timestamp"`
 	}
 }
 

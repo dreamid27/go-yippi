@@ -13,11 +13,13 @@ type CreateCategoryRequest struct {
 // CategoryResponse defines the response for category operations
 type CategoryResponse struct {
 	Body struct {
-		ID        string    `json:"id" doc:"Category ID (UUID)"`
-		Name      string    `json:"name" doc:"Category name"`
-		ParentID  *string   `json:"parent_id,omitempty" doc:"Parent category ID (UUID)"`
-		CreatedAt time.Time `json:"created_at" doc:"Creation timestamp"`
-		UpdatedAt time.Time `json:"updated_at" doc:"Last update timestamp"`
+		ID          string     `json:"id" doc:"Category ID (UUID)"`
+		Name        string     `json:"name" doc:"Category name"`
+		Slug        string     `json:"slug" doc:"URL-friendly slug"`
+		ParentID    *string    `json:"parent_id,omitempty" doc:"Parent category ID (UUID)"`
+		Description string     `json:"description,omitempty" doc:"Category description"`
+		CreatedAt   time.Time  `json:"created_at" doc:"Creation timestamp"`
+		UpdatedAt   time.Time  `json:"updated_at" doc:"Last update timestamp"`
 	}
 }
 

@@ -16,16 +16,20 @@ import (
 
 // ProductService handles business logic for products
 type ProductService struct {
-	repo         ports.ProductRepository
-	categoryRepo ports.CategoryRepository
-	observer     *observability.ServiceObserver
+	repo            ports.ProductRepository
+	categoryRepo    ports.CategoryRepository
+	variantRepo     ports.ProductVariantRepository
+	priceCalculator ports.PriceCalculatorService
+	observer        *observability.ServiceObserver
 }
 
-func NewProductService(repo ports.ProductRepository, categoryRepo ports.CategoryRepository) *ProductService {
+func NewProductService(repo ports.ProductRepository, categoryRepo ports.CategoryRepository, variantRepo ports.ProductVariantRepository, priceCalculator ports.PriceCalculatorService) *ProductService {
 	return &ProductService{
-		repo:         repo,
-		categoryRepo: categoryRepo,
-		observer:     observability.NewServiceObserver("ProductService"),
+		repo:            repo,
+		categoryRepo:    categoryRepo,
+		variantRepo:     variantRepo,
+		priceCalculator: priceCalculator,
+		observer:        observability.NewServiceObserver("ProductService"),
 	}
 }
 
@@ -541,4 +545,328 @@ func (s *ProductService) isValidOperatorForField(field string, op entities.Filte
 	}
 
 	return false
+}
+
+// ==================== Phase 2: Search & Variants ====================
+
+// SearchProducts performs advanced product search with filters and pagination
+func (s *ProductService) SearchProducts(ctx context.Context, params ports.SearchProductsParams) (*ports.ProductSearchResult, error) {
+	// Start observable operation
+	op := s.observer.StartOperation(ctx, "SearchProducts")
+	defer op.End(nil)
+
+	// Add search attributes for tracing
+	if params.Search != "" {
+		op.AddAttribute("search_query", params.Search)
+	}
+	if params.CategoryID != nil {
+		op.AddAttribute("category_id", params.CategoryID.String())
+	}
+	if params.BrandID != nil {
+		op.AddAttribute("brand_id", params.BrandID.String())
+	}
+
+	// Validate and set defaults
+	if params.Page < 1 {
+		params.Page = 1
+	}
+	if params.Limit < 1 {
+		params.Limit = 20
+	}
+	if params.Limit > 100 {
+		params.Limit = 100
+		op.LogInfo("Limiting search results to maximum allowed", zap.Int("limit", 100))
+	}
+	if params.SortBy == "" {
+		if params.Search != "" {
+			params.SortBy = "relevance"
+		} else {
+			params.SortBy = "created_at"
+		}
+	}
+	if params.SortOrder == "" {
+		params.SortOrder = "desc"
+	}
+
+	// Validate sort parameters
+	validSortFields := map[string]bool{
+		"name": true, "price": true, "created_at": true, "relevance": true,
+	}
+	if !validSortFields[params.SortBy] {
+		err := domainErrors.NewValidationError("sort_by", "Invalid sort field: "+params.SortBy)
+		observability.LogValidationError(op.Context(), "sort_by", "Invalid sort field: "+params.SortBy)
+		op.End(err)
+		return nil, err
+	}
+
+	if params.SortOrder != "asc" && params.SortOrder != "desc" {
+		err := domainErrors.NewValidationError("sort_order", "Sort order must be 'asc' or 'desc'")
+		observability.LogValidationError(op.Context(), "sort_order", "Sort order must be 'asc' or 'desc'")
+		op.End(err)
+		return nil, err
+	}
+
+	// Build query filters
+	queryParams := &entities.QueryParams{
+		Filters: []entities.Filter{},
+		Sort:    []entities.SortParam{},
+		Pagination: &entities.PaginationParams{
+			Limit:     params.Limit,
+			Direction: "forward",
+		},
+	}
+
+	// Add status filter (default to published if not specified)
+	if params.Status != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "status",
+			Operator: entities.OpEqual,
+			Value:    *params.Status,
+		})
+	} else {
+		// Default to published products for public search
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "status",
+			Operator: entities.OpEqual,
+			Value:    string(entities.ProductStatusPublished),
+		})
+	}
+
+	// Add category filter
+	if params.CategoryID != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "category_id",
+			Operator: entities.OpEqual,
+			Value:    params.CategoryID.String(),
+		})
+	}
+
+	// Add brand filter
+	if params.BrandID != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "brand_id",
+			Operator: entities.OpEqual,
+			Value:    params.BrandID.String(),
+		})
+	}
+
+	// Add price range filters
+	if params.MinPrice != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "price",
+			Operator: entities.OpGreaterThanOrEqual,
+			Value:    *params.MinPrice,
+		})
+	}
+	if params.MaxPrice != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "price",
+			Operator: entities.OpLessThanOrEqual,
+			Value:    *params.MaxPrice,
+		})
+	}
+
+	// Add sorting
+	if params.SortBy == "relevance" && params.Search != "" {
+		// Relevance sorting will be handled by the repository (PostgreSQL ts_rank)
+		queryParams.Sort = append(queryParams.Sort, entities.SortParam{
+			Field: "search_rank",
+			Order: entities.SortDesc, // Higher rank = more relevant
+		})
+	} else if params.SortBy == "price" {
+		sortOrder := entities.SortAsc
+		if params.SortOrder == "desc" {
+			sortOrder = entities.SortDesc
+		}
+		queryParams.Sort = append(queryParams.Sort, entities.SortParam{
+			Field: "price",
+			Order: sortOrder,
+		})
+	} else if params.SortBy == "name" {
+		sortOrder := entities.SortAsc
+		if params.SortOrder == "desc" {
+			sortOrder = entities.SortDesc
+		}
+		queryParams.Sort = append(queryParams.Sort, entities.SortParam{
+			Field: "name",
+			Order: sortOrder,
+		})
+	} else {
+		// Default: sort by created_at
+		sortOrder := entities.SortDesc
+		if params.SortOrder == "asc" {
+			sortOrder = entities.SortAsc
+		}
+		queryParams.Sort = append(queryParams.Sort, entities.SortParam{
+			Field: "created_at",
+			Order: sortOrder,
+		})
+	}
+
+	// Execute query
+	startTime := time.Now()
+
+	// TODO: Repository needs to support full-text search, variant attribute filters, and min/max price calculation
+	// For now, we'll use the basic Query method and post-process results
+	result, err := s.repo.Query(op.Context(), queryParams)
+
+	// Log slow operation
+	duration := time.Since(startTime)
+	observability.LogSlowOperation(op.Context(), "SearchProducts", duration, 200*time.Millisecond)
+
+	if err != nil {
+		op.End(err)
+		return nil, err
+	}
+
+	// Post-process results to add variant information
+	listItems := make([]*ports.ProductListItem, 0, len(result.Products))
+	for _, product := range result.Products {
+		// Fetch variants for this product
+		variants, err := s.variantRepo.FindByProductID(op.Context(), product.ID)
+		if err != nil {
+			op.LogInfo("Failed to fetch variants for product",
+				zap.String("product_id", product.ID.String()),
+				zap.Error(err))
+			// Continue without variants
+			variants = []*entities.ProductVariant{}
+		}
+
+		// Filter variants by Size and Color if specified
+		filteredVariants := variants
+		if params.Size != nil || params.Color != nil {
+			filteredVariants = make([]*entities.ProductVariant, 0)
+			for _, variant := range variants {
+				matchSize := params.Size == nil || variant.Attributes["size"] == *params.Size
+				matchColor := params.Color == nil || variant.Attributes["color"] == *params.Color
+				if matchSize && matchColor {
+					filteredVariants = append(filteredVariants, variant)
+				}
+			}
+
+			// Skip product if no variants match the filters
+			if len(filteredVariants) == 0 {
+				continue
+			}
+		}
+
+		// Calculate price range from variants
+		minPrice, maxPrice := s.priceCalculator.GetPriceRange(op.Context(), filteredVariants, product.BasePrice)
+
+		// Check if any variant has stock
+		hasStock := false
+		for _, variant := range filteredVariants {
+			if variant.IsActive && variant.IsInStock() {
+				hasStock = true
+				break
+			}
+		}
+
+		// Build list item
+		listItem := &ports.ProductListItem{
+			ID:            product.ID,
+			Slug:          product.Slug,
+			Name:          product.Name,
+			BasePrice:     product.BasePrice,
+			Description:   product.Description,
+			ImageURLs:     product.ImageURLs,
+			Status:        string(product.Status),
+			VariantsCount: len(variants),
+			MinPrice:      minPrice,
+			MaxPrice:      maxPrice,
+			HasStock:      hasStock,
+		}
+
+		// TODO: Add category and brand information when repository supports eager loading
+		// For now, these will be nil
+
+		listItems = append(listItems, listItem)
+	}
+
+	// Calculate pagination
+	totalPages := 0
+	if params.Limit > 0 {
+		totalPages = (len(listItems) + params.Limit - 1) / params.Limit
+	}
+
+	// Log search results
+	op.AddAttribute("results_count", len(listItems))
+	op.LogInfo("Search completed",
+		zap.Int("results_count", len(listItems)),
+		zap.Duration("duration", duration))
+
+	searchResult := &ports.ProductSearchResult{
+		Products: listItems,
+		Pagination: ports.PaginationInfo{
+			Page:       params.Page,
+			Limit:      params.Limit,
+			Total:      len(listItems), // TODO: Get actual total count from repository
+			TotalPages: totalPages,
+		},
+	}
+
+	op.End(nil)
+	return searchResult, nil
+}
+
+// GetProductWithVariants retrieves a product with all its variants and related data
+func (s *ProductService) GetProductWithVariants(ctx context.Context, id uuid.UUID) (*ports.ProductDetail, error) {
+	// Start observable operation
+	op := s.observer.StartOperation(ctx, "GetProductWithVariants")
+	defer op.End(nil)
+
+	op.AddAttribute("product_id", id.String())
+
+	// Fetch product
+	product, err := s.repo.GetByID(op.Context(), id)
+	if err != nil {
+		observability.LogNotFoundError(op.Context(), "Product", id)
+		op.End(err)
+		return nil, err
+	}
+
+	// Fetch variants
+	startTime := time.Now()
+	variants, err := s.variantRepo.FindByProductID(op.Context(), id)
+	if err != nil {
+		op.LogInfo("Failed to fetch variants", zap.Error(err))
+		// Continue with empty variants
+		variants = []*entities.ProductVariant{}
+	}
+
+	// Log slow variant fetch
+	observability.LogSlowOperation(op.Context(), "FetchVariants", time.Since(startTime), 100*time.Millisecond)
+
+	// Build variant details with calculated fields
+	variantDetails := make([]*ports.ProductVariantDetail, 0, len(variants))
+	for _, variant := range variants {
+		detail := &ports.ProductVariantDetail{
+			ID:              variant.ID,
+			SKU:             variant.SKU,
+			Attributes:      variant.Attributes,
+			StockQuantity:   variant.StockQuantity,
+			PriceAdjustment: variant.PriceAdjustment,
+			FinalPrice:      s.priceCalculator.CalculateVariantPrice(op.Context(), product.BasePrice, variant.PriceAdjustment),
+			IsActive:        variant.IsActive,
+			IsInStock:       variant.IsInStock(),
+		}
+		variantDetails = append(variantDetails, detail)
+	}
+
+	// TODO: Fetch category and brand when repository supports it
+	// For now, these will be nil
+
+	productDetail := &ports.ProductDetail{
+		Product:  product,
+		Category: nil, // TODO: Fetch category
+		Brand:    nil, // TODO: Fetch brand
+		Variants: variantDetails,
+	}
+
+	op.AddAttribute("variants_count", len(variantDetails))
+	op.LogInfo("Product with variants retrieved successfully",
+		zap.Int("variants_count", len(variantDetails)))
+
+	op.End(nil)
+	return productDetail, nil
 }

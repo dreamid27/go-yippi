@@ -6,6 +6,7 @@ import (
 
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -21,7 +22,7 @@ func (m *MockCategoryRepository) Create(ctx context.Context, category *entities.
 	return args.Error(0)
 }
 
-func (m *MockCategoryRepository) GetByID(ctx context.Context, id int) (*entities.Category, error) {
+func (m *MockCategoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Category, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -45,7 +46,7 @@ func (m *MockCategoryRepository) List(ctx context.Context) ([]*entities.Category
 	return args.Get(0).([]*entities.Category), args.Error(1)
 }
 
-func (m *MockCategoryRepository) ListByParentID(ctx context.Context, parentID *int) ([]*entities.Category, error) {
+func (m *MockCategoryRepository) ListByParentID(ctx context.Context, parentID *uuid.UUID) ([]*entities.Category, error) {
 	args := m.Called(ctx, parentID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -58,9 +59,17 @@ func (m *MockCategoryRepository) Update(ctx context.Context, category *entities.
 	return args.Error(0)
 }
 
-func (m *MockCategoryRepository) Delete(ctx context.Context, id int) error {
+func (m *MockCategoryRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
+}
+
+func (m *MockCategoryRepository) GetDescendantIDs(ctx context.Context, categoryIDs []uuid.UUID) ([]uuid.UUID, error) {
+	args := m.Called(ctx, categoryIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]uuid.UUID), args.Error(1)
 }
 
 // TestCreateCategory_Success tests successful category creation
@@ -91,14 +100,14 @@ func TestCreateCategory_WithParent(t *testing.T) {
 	service := NewCategoryService(mockRepo)
 	ctx := context.Background()
 
-	parentID := 1
+	parentID := uuid.New()
 	category := &entities.Category{
 		Name:     "Laptops",
 		ParentID: &parentID,
 	}
 
 	parentCategory := &entities.Category{
-		ID:   1,
+		ID:   parentID,
 		Name: "Electronics",
 	}
 
@@ -140,7 +149,7 @@ func TestCreateCategory_InvalidParent(t *testing.T) {
 	service := NewCategoryService(mockRepo)
 	ctx := context.Background()
 
-	parentID := 999
+	parentID := uuid.New()
 	category := &entities.Category{
 		Name:     "Laptops",
 		ParentID: &parentID,
@@ -164,8 +173,9 @@ func TestUpdateCategory_Success(t *testing.T) {
 	service := NewCategoryService(mockRepo)
 	ctx := context.Background()
 
+	categoryID := uuid.New()
 	category := &entities.Category{
-		ID:   1,
+		ID:   categoryID,
 		Name: "Updated Electronics",
 	}
 
@@ -186,7 +196,7 @@ func TestUpdateCategory_SelfParent(t *testing.T) {
 	service := NewCategoryService(mockRepo)
 	ctx := context.Background()
 
-	categoryID := 1
+	categoryID := uuid.New()
 	category := &entities.Category{
 		ID:       categoryID,
 		Name:     "Electronics",
@@ -209,7 +219,7 @@ func TestDeleteCategory_Success(t *testing.T) {
 	service := NewCategoryService(mockRepo)
 	ctx := context.Background()
 
-	categoryID := 1
+	categoryID := uuid.New()
 	category := &entities.Category{
 		ID:   categoryID,
 		Name: "Electronics",
@@ -234,14 +244,15 @@ func TestDeleteCategory_WithChildren(t *testing.T) {
 	service := NewCategoryService(mockRepo)
 	ctx := context.Background()
 
-	categoryID := 1
+	categoryID := uuid.New()
+	childID := uuid.New()
 	category := &entities.Category{
 		ID:   categoryID,
 		Name: "Electronics",
 	}
 
 	children := []*entities.Category{
-		{ID: 2, Name: "Laptops", ParentID: &categoryID},
+		{ID: childID, Name: "Laptops", ParentID: &categoryID},
 	}
 
 	mockRepo.On("GetByID", ctx, categoryID).Return(category, nil)
@@ -263,9 +274,11 @@ func TestListCategories_Success(t *testing.T) {
 	service := NewCategoryService(mockRepo)
 	ctx := context.Background()
 
+	categoryID1 := uuid.New()
+	categoryID2 := uuid.New()
 	expectedCategories := []*entities.Category{
-		{ID: 1, Name: "Electronics"},
-		{ID: 2, Name: "Books"},
+		{ID: categoryID1, Name: "Electronics"},
+		{ID: categoryID2, Name: "Books"},
 	}
 
 	mockRepo.On("List", ctx).Return(expectedCategories, nil)
@@ -286,15 +299,17 @@ func TestListCategoriesByParentID_Success(t *testing.T) {
 	service := NewCategoryService(mockRepo)
 	ctx := context.Background()
 
-	parentID := 1
+	parentID := uuid.New()
+	childID1 := uuid.New()
+	childID2 := uuid.New()
 	parentCategory := &entities.Category{
 		ID:   parentID,
 		Name: "Electronics",
 	}
 
 	expectedCategories := []*entities.Category{
-		{ID: 2, Name: "Laptops", ParentID: &parentID},
-		{ID: 3, Name: "Phones", ParentID: &parentID},
+		{ID: childID1, Name: "Laptops", ParentID: &parentID},
+		{ID: childID2, Name: "Phones", ParentID: &parentID},
 	}
 
 	mockRepo.On("GetByID", ctx, parentID).Return(parentCategory, nil)
