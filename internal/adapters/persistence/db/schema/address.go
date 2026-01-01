@@ -96,8 +96,7 @@ func (Address) Edges() []ent.Edge {
 			Required().
 			Field("user_id"),
 
-		// TODO: Re-add after Order schema is created (Task 3)
-		// edge.To("orders", Order.Type),
+		edge.To("orders", Order.Type),
 	}
 }
 
