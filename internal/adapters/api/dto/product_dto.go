@@ -152,18 +152,18 @@ type ArchiveProductRequest struct {
 
 // SearchProductsRequest defines the request for searching products with filters (REQ-9.2)
 type SearchProductsRequest struct {
-	Search     string   `query:"search" doc:"Full-text search query (optional)"`
-	CategoryID *string  `query:"category_id" doc:"Filter by category ID (UUID)"`
-	BrandID    *string  `query:"brand_id" doc:"Filter by brand ID (UUID)"`
-	MinPrice   *float64 `query:"min_price" minimum:"0" doc:"Minimum base price filter"`
-	MaxPrice   *float64 `query:"max_price" minimum:"0" doc:"Maximum base price filter"`
-	Size       *string  `query:"size" doc:"Filter by variant size attribute"`
-	Color      *string  `query:"color" doc:"Filter by variant color attribute"`
-	Status     *string  `query:"status" enum:"published,draft,archived" doc:"Filter by product status"`
-	SortBy     string   `query:"sort_by" default:"created_at" enum:"name,price,created_at,relevance" doc:"Sort field (default: created_at)"`
-	SortOrder  string   `query:"sort_order" default:"desc" enum:"asc,desc" doc:"Sort order (default: desc)"`
-	Page       int      `query:"page" default:"1" minimum:"1" doc:"Page number (default: 1)"`
-	Limit      int      `query:"limit" default:"20" minimum:"1" maximum:"100" doc:"Items per page (default: 20, max: 100)"`
+	Search     string  `query:"search" doc:"Full-text search query (optional)"`
+	CategoryID string  `query:"category_id" doc:"Filter by category ID (UUID)"`
+	BrandID    string  `query:"brand_id" doc:"Filter by brand ID (UUID)"`
+	MinPrice   float64 `query:"min_price" minimum:"0" doc:"Minimum base price filter"`
+	MaxPrice   float64 `query:"max_price" minimum:"0" doc:"Maximum base price filter"`
+	Size       string  `query:"size" doc:"Filter by variant size attribute"`
+	Color      string  `query:"color" doc:"Filter by variant color attribute"`
+	Status     string  `query:"status" enum:",published,draft,archived" doc:"Filter by product status"`
+	SortBy     string  `query:"sort_by" default:"created_at" enum:"name,price,created_at,relevance" doc:"Sort field (default: created_at)"`
+	SortOrder  string  `query:"sort_order" default:"desc" enum:"asc,desc" doc:"Sort order (default: desc)"`
+	Page       int     `query:"page" default:"1" minimum:"1" doc:"Page number (default: 1)"`
+	Limit      int     `query:"limit" default:"20" minimum:"1" maximum:"100" doc:"Items per page (default: 20, max: 100)"`
 }
 
 // CategorySummaryDTO represents category summary in product list

@@ -232,32 +232,51 @@ func (h *ProductHandler) SearchProducts(ctx context.Context, input *dto.SearchPr
 	// Validate and parse UUID filters
 	var categoryUUID, brandUUID *uuid.UUID
 
-	if input.CategoryID != nil && *input.CategoryID != "" {
-		parsed, err := uuid.Parse(*input.CategoryID)
+	if input.CategoryID != "" {
+		parsed, err := uuid.Parse(input.CategoryID)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Invalid category_id UUID format", err)
 		}
 		categoryUUID = &parsed
 	}
 
-	if input.BrandID != nil && *input.BrandID != "" {
-		parsed, err := uuid.Parse(*input.BrandID)
+	if input.BrandID != "" {
+		parsed, err := uuid.Parse(input.BrandID)
 		if err != nil {
 			return nil, huma.Error400BadRequest("Invalid brand_id UUID format", err)
 		}
 		brandUUID = &parsed
 	}
 
-	// Build search params
+	// Build search params - convert empty strings to nil pointers for optional fields
+	var minPrice, maxPrice *float64
+	var size, color, status *string
+
+	if input.MinPrice > 0 {
+		minPrice = &input.MinPrice
+	}
+	if input.MaxPrice > 0 {
+		maxPrice = &input.MaxPrice
+	}
+	if input.Size != "" {
+		size = &input.Size
+	}
+	if input.Color != "" {
+		color = &input.Color
+	}
+	if input.Status != "" {
+		status = &input.Status
+	}
+
 	params := ports.SearchProductsParams{
 		Search:     input.Search,
 		CategoryID: categoryUUID,
 		BrandID:    brandUUID,
-		MinPrice:   input.MinPrice,
-		MaxPrice:   input.MaxPrice,
-		Size:       input.Size,
-		Color:      input.Color,
-		Status:     input.Status,
+		MinPrice:   minPrice,
+		MaxPrice:   maxPrice,
+		Size:       size,
+		Color:      color,
+		Status:     status,
 		SortBy:     input.SortBy,
 		SortOrder:  input.SortOrder,
 		Page:       input.Page,
