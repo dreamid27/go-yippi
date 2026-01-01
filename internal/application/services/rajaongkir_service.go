@@ -87,3 +87,15 @@ func (s *RajaOngkirService) GetCity(ctx context.Context, cityID string) (*rajaon
 
 	return nil, fmt.Errorf("city with ID %s not found", cityID)
 }
+
+// GetCost calculates shipping cost between two cities
+func (s *RajaOngkirService) GetCost(ctx context.Context, req rajaongkir.CostRequest) (*rajaongkir.CostResponse, error) {
+	// Note: Shipping costs change frequently, so we don't cache them
+	// In production, you might add a short-lived cache (1 hour)
+	resp, err := s.client.GetCost(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate shipping cost: %w", err)
+	}
+
+	return resp, nil
+}
