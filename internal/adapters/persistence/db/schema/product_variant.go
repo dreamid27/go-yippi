@@ -66,6 +66,9 @@ func (ProductVariant) Edges() []ent.Edge {
 			Field("product_id"),
 
 		edge.To("cart_items", CartItem.Type),
+
+		// One-to-many to OrderItem (order items referencing this variant)
+		edge.To("order_items", OrderItem.Type),
 	}
 }
 
