@@ -53,5 +53,11 @@ func (User) Edges() []ent.Edge {
 		// One cart per user
 		edge.To("cart", Cart.Type).
 			Unique(),
+
+		// NEW: Address relationship
+		edge.To("addresses", Address.Type),
+
+		// NEW: Orders relationship
+		edge.To("orders", Order.Type),
 	}
 }
