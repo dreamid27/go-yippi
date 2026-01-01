@@ -134,8 +134,7 @@ func (Order) Edges() []ent.Edge {
 			Required().
 			Field("shipping_address_id"),
 
-		// TODO: Uncomment when OrderItem schema is created
-		// edge.To("items", OrderItem.Type),
+			edge.To("items", OrderItem.Type),
 
 		edge.To("payment", Payment.Type).
 			Unique(),
