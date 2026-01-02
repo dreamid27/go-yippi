@@ -50,6 +50,17 @@ func (h *ProductHandler) RegisterRoutes(api huma.API) {
 		Errors:      []int{http.StatusBadRequest, http.StatusInternalServerError},
 	}, h.SearchProducts)
 
+	// Get product filter options
+	huma.Register(api, huma.Operation{
+		OperationID: "get-product-filters",
+		Method:      http.MethodGet,
+		Path:        "/products/filters",
+		Summary:     "Get product filter options",
+		Description: "Returns distinct attribute values available across products for filtering. Supports pre-filtering by category, brand, price range, and specific attributes.",
+		Tags:        []string{"Products"},
+		Errors:      []int{http.StatusBadRequest, http.StatusInternalServerError},
+	}, h.GetProductFilters)
+
 	// Get product by ID
 	huma.Register(api, huma.Operation{
 		OperationID: "get-product",
@@ -358,6 +369,74 @@ func (h *ProductHandler) SearchProducts(ctx context.Context, input *dto.SearchPr
 		Total:      result.Pagination.Total,
 		TotalPages: result.Pagination.TotalPages,
 	}
+
+	return resp, nil
+}
+
+// GetProductFilters returns distinct attribute values for filtering
+func (h *ProductHandler) GetProductFilters(ctx context.Context, input *dto.GetProductFiltersRequest) (*dto.ProductFiltersResponse, error) {
+	// Validate and parse UUID filters
+	var categoryUUID, brandUUID *uuid.UUID
+
+	if input.CategoryID != "" {
+		parsed, err := uuid.Parse(input.CategoryID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid category_id UUID format", err)
+		}
+		categoryUUID = &parsed
+	}
+
+	if input.BrandID != "" {
+		parsed, err := uuid.Parse(input.BrandID)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid brand_id UUID format", err)
+		}
+		brandUUID = &parsed
+	}
+
+	// Build search params - convert empty strings to nil pointers for optional fields
+	var minPrice, maxPrice *float64
+	var size, color, status *string
+
+	if input.MinPrice > 0 {
+		minPrice = &input.MinPrice
+	}
+	if input.MaxPrice > 0 {
+		maxPrice = &input.MaxPrice
+	}
+	if input.Size != "" {
+		size = &input.Size
+	}
+	if input.Color != "" {
+		color = &input.Color
+	}
+	if input.Status != "" {
+		status = &input.Status
+	}
+
+	params := ports.SearchProductsParams{
+		Search:     input.Search,
+		CategoryID: categoryUUID,
+		BrandID:    brandUUID,
+		MinPrice:   minPrice,
+		MaxPrice:   maxPrice,
+		Size:       size,
+		Color:      color,
+		Status:     status,
+	}
+
+	// Call service to get distinct attribute values
+	filters, err := h.service.GetProductFilters(ctx, params)
+	if err != nil {
+		if errors.Is(err, domainErrors.ErrInvalidInput) {
+			return nil, huma.Error400BadRequest("Invalid filter parameters", err)
+		}
+		return nil, huma.Error500InternalServerError("Failed to get product filters", err)
+	}
+
+	// Build response
+	resp := &dto.ProductFiltersResponse{}
+	resp.Body.Filters = filters
 
 	return resp, nil
 }

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -898,4 +899,176 @@ func (s *ProductService) GetProductWithVariants(ctx context.Context, id uuid.UUI
 
 	op.End(nil)
 	return productDetail, nil
+}
+
+// GetProductFilters returns distinct attribute values for filtering
+func (s *ProductService) GetProductFilters(ctx context.Context, params ports.SearchProductsParams) (map[string][]string, error) {
+	// Start observable operation
+	op := s.observer.StartOperation(ctx, "GetProductFilters")
+	defer op.End(nil)
+
+	// Add search attributes for tracing
+	if params.Search != "" {
+		op.AddAttribute("search_query", params.Search)
+	}
+	if params.CategoryID != nil {
+		op.AddAttribute("category_id", params.CategoryID.String())
+	}
+	if params.BrandID != nil {
+		op.AddAttribute("brand_id", params.BrandID.String())
+	}
+
+	// Build query filters (same logic as SearchProducts but without pagination)
+	queryParams := &entities.QueryParams{
+		Filters: []entities.Filter{},
+		Sort:    []entities.SortParam{},
+		Pagination: &entities.PaginationParams{
+			Limit:     1000, // High limit to get all products for filter aggregation
+			Direction: "forward",
+		},
+	}
+
+	// Add status filter (default to published if not specified)
+	if params.Status != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "status",
+			Operator: entities.OpEqual,
+			Value:    *params.Status,
+		})
+	} else {
+		// Default to published products
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "status",
+			Operator: entities.OpEqual,
+			Value:    string(entities.ProductStatusPublished),
+		})
+	}
+
+	// Add category filter - expand to include all descendants
+	if params.CategoryID != nil {
+		categoryIDs := []uuid.UUID{*params.CategoryID}
+		expandedIDs, err := s.categoryRepo.GetDescendantIDs(op.Context(), categoryIDs)
+		if err != nil {
+			op.End(err)
+			return nil, fmt.Errorf("failed to expand category IDs: %w", err)
+		}
+
+		if len(expandedIDs) == 1 {
+			queryParams.Filters = append(queryParams.Filters, entities.Filter{
+				Field:    "category_id",
+				Operator: entities.OpEqual,
+				Value:    expandedIDs[0].String(),
+			})
+		} else {
+			expandedValues := make([]interface{}, len(expandedIDs))
+			for i, id := range expandedIDs {
+				expandedValues[i] = id.String()
+			}
+			queryParams.Filters = append(queryParams.Filters, entities.Filter{
+				Field:    "category_id",
+				Operator: entities.OpIn,
+				Value:    expandedValues,
+			})
+		}
+	}
+
+	// Add brand filter
+	if params.BrandID != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "brand_id",
+			Operator: entities.OpEqual,
+			Value:    params.BrandID.String(),
+		})
+	}
+
+	// Add price range filters
+	if params.MinPrice != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "price",
+			Operator: entities.OpGreaterThanOrEqual,
+			Value:    *params.MinPrice,
+		})
+	}
+	if params.MaxPrice != nil {
+		queryParams.Filters = append(queryParams.Filters, entities.Filter{
+			Field:    "price",
+			Operator: entities.OpLessThanOrEqual,
+			Value:    *params.MaxPrice,
+		})
+	}
+
+	// Execute query
+	startTime := time.Now()
+	result, err := s.repo.Query(op.Context(), queryParams)
+
+	// Log slow operation
+	observability.LogSlowOperation(op.Context(), "GetProductFilters", time.Since(startTime), 200*time.Millisecond)
+
+	if err != nil {
+		op.End(err)
+		return nil, err
+	}
+
+	// Aggregate distinct attribute values from all variants
+	// Use nested map for deduplication: attribute key -> value -> empty struct
+	attributeValues := make(map[string]map[string]struct{})
+
+	for _, product := range result.Products {
+		// Fetch variants for this product
+		variants, err := s.variantRepo.FindByProductID(op.Context(), product.ID)
+		if err != nil {
+			op.LogInfo("Failed to fetch variants for product",
+				zap.String("product_id", product.ID.String()),
+				zap.Error(err))
+			continue
+		}
+
+		// Filter variants by Size and Color if specified (same logic as SearchProducts)
+		filteredVariants := variants
+		if params.Size != nil || params.Color != nil {
+			filteredVariants = make([]*entities.ProductVariant, 0)
+			for _, variant := range variants {
+				matchSize := params.Size == nil || variant.Attributes["size"] == *params.Size
+				matchColor := params.Color == nil || variant.Attributes["color"] == *params.Color
+				if matchSize && matchColor {
+					filteredVariants = append(filteredVariants, variant)
+				}
+			}
+		}
+
+		// Extract attributes from filtered variants
+		for _, variant := range filteredVariants {
+			for attrKey, attrValue := range variant.Attributes {
+				// Initialize inner map if not exists
+				if attributeValues[attrKey] == nil {
+					attributeValues[attrKey] = make(map[string]struct{})
+				}
+				// Add value to set (deduplication)
+				attributeValues[attrKey][attrValue] = struct{}{}
+			}
+		}
+	}
+
+	// Convert sets to sorted slices
+	filters := make(map[string][]string)
+	for attrKey, valueSet := range attributeValues {
+		values := make([]string, 0, len(valueSet))
+		for value := range valueSet {
+			values = append(values, value)
+		}
+		// Sort values alphabetically
+		sort.Strings(values)
+		filters[attrKey] = values
+	}
+
+	// Log results
+	op.AddAttribute("attribute_count", len(filters))
+	for key, values := range filters {
+		op.LogInfo("Attribute filter generated",
+			zap.String("attribute", key),
+			zap.Int("value_count", len(values)))
+	}
+
+	op.End(nil)
+	return filters, nil
 }

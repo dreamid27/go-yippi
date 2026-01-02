@@ -138,7 +138,7 @@ func main() {
 	cartHandler := handlers.NewCartHandler(cartService)
 
 
-	brandRepo := persistence.NewBrandRepository(dbClient)
+	brandRepo := persistence.NewBrandRepository(dbClient, categoryRepo)
 	brandService := services.NewBrandService(brandRepo)
 	brandHandler := handlers.NewBrandHandler(brandService)
 

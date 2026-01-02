@@ -254,3 +254,22 @@ type ProductDetailResponse struct {
 		UpdatedAt   time.Time                `json:"updated_at" doc:"Last update timestamp"`
 	}
 }
+
+// GetProductFiltersRequest defines the request for getting product filter options
+type GetProductFiltersRequest struct {
+	Search     string  `query:"search" doc:"Full-text search query (optional)"`
+	CategoryID string  `query:"category_id" doc:"Filter by category ID (UUID)"`
+	BrandID    string  `query:"brand_id" doc:"Filter by brand ID (UUID)"`
+	MinPrice   float64 `query:"min_price" minimum:"0" doc:"Minimum base price filter"`
+	MaxPrice   float64 `query:"max_price" minimum:"0" doc:"Maximum base price filter"`
+	Size       string  `query:"size" doc:"Pre-filter by variant size attribute"`
+	Color      string  `query:"color" doc:"Pre-filter by variant color attribute"`
+	Status     string  `query:"status" enum:",published,draft,archived" doc:"Filter by product status"`
+}
+
+// ProductFiltersResponse defines the response for product filter options
+type ProductFiltersResponse struct {
+	Body struct {
+		Filters map[string][]string `json:"filters" doc:"Map of attribute name to distinct values"`
+	}
+}

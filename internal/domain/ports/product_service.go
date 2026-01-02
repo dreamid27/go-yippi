@@ -24,6 +24,9 @@ type ProductService interface {
 	// Phase 2: Search & Variants
 	SearchProducts(ctx context.Context, params SearchProductsParams) (*ProductSearchResult, error)
 	GetProductWithVariants(ctx context.Context, id uuid.UUID) (*ProductDetail, error)
+
+	// Get distinct attribute values for filtering
+	GetProductFilters(ctx context.Context, params SearchProductsParams) (map[string][]string, error)
 }
 
 // SearchProductsParams contains parameters for product search (Phase 2)

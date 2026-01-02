@@ -8,16 +8,21 @@ import (
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/product"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
+	"example.com/go-yippi/internal/domain/ports"
 	"github.com/google/uuid"
 )
 
 // BrandRepositoryImpl implements the BrandRepository interface using Ent
 type BrandRepositoryImpl struct {
-	client *ent.Client
+	client         *ent.Client
+	categoryRepo   ports.CategoryRepository
 }
 
-func NewBrandRepository(client *ent.Client) *BrandRepositoryImpl {
-	return &BrandRepositoryImpl{client: client}
+func NewBrandRepository(client *ent.Client, categoryRepo ports.CategoryRepository) *BrandRepositoryImpl {
+	return &BrandRepositoryImpl{
+		client:       client,
+		categoryRepo: categoryRepo,
+	}
 }
 
 func (r *BrandRepositoryImpl) Create(ctx context.Context, b *entities.Brand) error {
@@ -89,10 +94,16 @@ func (r *BrandRepositoryImpl) List(ctx context.Context, categoryIDs []uuid.UUID)
 			return nil, err
 		}
 	} else {
-		// With category filter - query brands that have products in ANY of the specified categories
+		// With category filter - first expand to include all descendant categories recursively
+		allCategoryIDs, err := r.categoryRepo.GetDescendantIDs(ctx, categoryIDs)
+		if err != nil {
+			return nil, err
+		}
+
+		// Query brands that have products in ANY of the specified categories (including descendants)
 		// First, find distinct brand IDs from products in the given categories
 		products, err := r.client.Product.Query().
-			Where(product.CategoryIDIn(categoryIDs...)).
+			Where(product.CategoryIDIn(allCategoryIDs...)).
 			QueryBrand().
 			Order(ent.Asc(brand.FieldName)).
 			All(ctx)
