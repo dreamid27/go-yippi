@@ -632,13 +632,42 @@ func (s *ProductService) SearchProducts(ctx context.Context, params ports.Search
 		})
 	}
 
-	// Add category filter
+	// Add category filter - expand to include all descendants
 	if params.CategoryID != nil {
-		queryParams.Filters = append(queryParams.Filters, entities.Filter{
-			Field:    "category_id",
-			Operator: entities.OpEqual,
-			Value:    params.CategoryID.String(),
-		})
+		// Get all descendant category IDs
+		categoryIDs := []uuid.UUID{*params.CategoryID}
+		expandedIDs, err := s.categoryRepo.GetDescendantIDs(op.Context(), categoryIDs)
+		if err != nil {
+			op.End(err)
+			return nil, fmt.Errorf("failed to expand category IDs: %w", err)
+		}
+
+		// Log category expansion
+		if len(expandedIDs) > len(categoryIDs) {
+			op.LogInfo("Expanded category filter to include descendants",
+				zap.Int("original_count", len(categoryIDs)),
+				zap.Int("expanded_count", len(expandedIDs)))
+		}
+
+		// Use expanded IDs in filter
+		if len(expandedIDs) == 1 {
+			queryParams.Filters = append(queryParams.Filters, entities.Filter{
+				Field:    "category_id",
+				Operator: entities.OpEqual,
+				Value:    expandedIDs[0].String(),
+			})
+		} else {
+			// Convert to []interface{} for OpIn operator
+			expandedValues := make([]interface{}, len(expandedIDs))
+			for i, id := range expandedIDs {
+				expandedValues[i] = id.String()
+			}
+			queryParams.Filters = append(queryParams.Filters, entities.Filter{
+				Field:    "category_id",
+				Operator: entities.OpIn,
+				Value:    expandedValues,
+			})
+		}
 	}
 
 	// Add brand filter

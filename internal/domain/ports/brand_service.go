@@ -12,7 +12,7 @@ type BrandService interface {
 	CreateBrand(ctx context.Context, brand *entities.Brand) error
 	GetBrand(ctx context.Context, id uuid.UUID) (*entities.Brand, error)
 	GetBrandByName(ctx context.Context, name string) (*entities.Brand, error)
-	ListBrands(ctx context.Context) ([]*entities.Brand, error)
+	ListBrands(ctx context.Context, categoryIDs []uuid.UUID) ([]*entities.Brand, error)
 	UpdateBrand(ctx context.Context, brand *entities.Brand) error
 	DeleteBrand(ctx context.Context, id uuid.UUID) error
 }

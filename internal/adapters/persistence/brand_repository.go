@@ -5,6 +5,7 @@ import (
 
 	"example.com/go-yippi/internal/adapters/persistence/db/ent"
 	"example.com/go-yippi/internal/adapters/persistence/db/ent/brand"
+	"example.com/go-yippi/internal/adapters/persistence/db/ent/product"
 	"example.com/go-yippi/internal/domain/entities"
 	domainErrors "example.com/go-yippi/internal/domain/errors"
 	"github.com/google/uuid"
@@ -75,12 +76,33 @@ func (r *BrandRepositoryImpl) GetByName(ctx context.Context, name string) (*enti
 	}, nil
 }
 
-func (r *BrandRepositoryImpl) List(ctx context.Context) ([]*entities.Brand, error) {
-	list, err := r.client.Brand.Query().All(ctx)
-	if err != nil {
-		return nil, err
+func (r *BrandRepositoryImpl) List(ctx context.Context, categoryIDs []uuid.UUID) ([]*entities.Brand, error) {
+	var list []*ent.Brand
+	var err error
+
+	// If no category filter, return all brands ordered by name
+	if len(categoryIDs) == 0 {
+		list, err = r.client.Brand.Query().
+			Order(ent.Asc(brand.FieldName)).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// With category filter - query brands that have products in ANY of the specified categories
+		// First, find distinct brand IDs from products in the given categories
+		products, err := r.client.Product.Query().
+			Where(product.CategoryIDIn(categoryIDs...)).
+			QueryBrand().
+			Order(ent.Asc(brand.FieldName)).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		list = products
 	}
 
+	// Map Ent entities to domain entities
 	brands := make([]*entities.Brand, 0, len(list))
 	for _, b := range list {
 		brands = append(brands, &entities.Brand{

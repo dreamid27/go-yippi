@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -54,6 +55,35 @@ type BrandListItem struct {
 	Name      string    `json:"name" doc:"Brand name"`
 	CreatedAt time.Time `json:"created_at" doc:"Creation timestamp"`
 	UpdatedAt time.Time `json:"updated_at" doc:"Last update timestamp"`
+}
+
+// ListBrandsRequest defines the request for listing brands with optional filters
+type ListBrandsRequest struct {
+	CategoryIDs string `query:"category_ids" doc:"Comma-separated list of category UUIDs to filter brands by (optional)"`
+}
+
+// GetCategoryIDs parses the comma-separated category IDs and returns a slice of UUIDs
+func (r *ListBrandsRequest) GetCategoryIDs() []uuid.UUID {
+	if r.CategoryIDs == "" {
+		return nil
+	}
+
+	parts := strings.Split(r.CategoryIDs, ",")
+	categoryIDs := make([]uuid.UUID, 0, len(parts))
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		id, err := uuid.Parse(part)
+		if err == nil {
+			categoryIDs = append(categoryIDs, id)
+		}
+	}
+
+	return categoryIDs
 }
 
 // ListBrandsResponse defines the response for listing brands

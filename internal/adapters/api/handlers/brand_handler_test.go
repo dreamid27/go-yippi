@@ -42,8 +42,8 @@ func (m *MockBrandService) GetBrandByName(ctx context.Context, name string) (*en
 	return args.Get(0).(*entities.Brand), args.Error(1)
 }
 
-func (m *MockBrandService) ListBrands(ctx context.Context) ([]*entities.Brand, error) {
-	args := m.Called(ctx)
+func (m *MockBrandService) ListBrands(ctx context.Context, categoryIDs []uuid.UUID) ([]*entities.Brand, error) {
+	args := m.Called(ctx, categoryIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -156,10 +156,11 @@ func TestListBrands_Success(t *testing.T) {
 		{ID: uuid.New(), Name: "Brand 2", CreatedAt: now, UpdatedAt: now},
 	}
 
-	mockService.On("ListBrands", ctx).Return(brands, nil)
+	input := &dto.ListBrandsRequest{}
+	mockService.On("ListBrands", ctx, []uuid.UUID(nil)).Return(brands, nil)
 
 	// Act
-	response, err := handler.ListBrands(ctx, &struct{}{})
+	response, err := handler.ListBrands(ctx, input)
 
 	// Assert
 	require.NoError(t, err)
@@ -177,10 +178,11 @@ func TestListBrands_Empty(t *testing.T) {
 	handler := NewBrandHandler(mockService)
 	ctx := context.Background()
 
-	mockService.On("ListBrands", ctx).Return([]*entities.Brand{}, nil)
+	input := &dto.ListBrandsRequest{}
+	mockService.On("ListBrands", ctx, []uuid.UUID(nil)).Return([]*entities.Brand{}, nil)
 
 	// Act
-	response, err := handler.ListBrands(ctx, &struct{}{})
+	response, err := handler.ListBrands(ctx, input)
 
 	// Assert
 	require.NoError(t, err)

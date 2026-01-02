@@ -111,8 +111,8 @@ func (h *BrandHandler) CreateBrand(ctx context.Context, input *dto.CreateBrandRe
 }
 
 // ListBrands handles GET /brands
-func (h *BrandHandler) ListBrands(ctx context.Context, _ *struct{}) (*dto.ListBrandsResponse, error) {
-	brands, err := h.service.ListBrands(ctx)
+func (h *BrandHandler) ListBrands(ctx context.Context, input *dto.ListBrandsRequest) (*dto.ListBrandsResponse, error) {
+	brands, err := h.service.ListBrands(ctx, input.GetCategoryIDs())
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to list brands", err)
 	}

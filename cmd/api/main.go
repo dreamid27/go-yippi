@@ -97,6 +97,9 @@ func main() {
 	humaConfig.DocsPath = "" // Disable default docs to use Scalar instead
 	humaAPI := humafiber.New(app, humaConfig)
 
+	// Create API route group with /api prefix
+	apiGroup := huma.NewGroup(humaAPI, "/api")
+
 	// Add custom /docs route for Scalar API documentation
 	app.Get("/docs", func(c *fiber.Ctx) error {
 		c.Set("Content-Type", "text/html")
@@ -181,13 +184,13 @@ func main() {
 	fileHandler := handlers.NewFileHandler(storageService)
 
 	// Register Huma routes
-	userHandler.RegisterRoutes(humaAPI)
-	categoryHandler.RegisterRoutes(humaAPI)
-	productHandler.RegisterRoutes(humaAPI)
-	cartHandler.RegisterRoutes(humaAPI)
-	brandHandler.RegisterRoutes(humaAPI)
-	fileHandler.RegisterRoutes(humaAPI)
-	authHandler.RegisterRoutes(humaAPI)
+	userHandler.RegisterRoutes(apiGroup)
+	categoryHandler.RegisterRoutes(apiGroup)
+	productHandler.RegisterRoutes(apiGroup)
+	cartHandler.RegisterRoutes(apiGroup)
+	brandHandler.RegisterRoutes(apiGroup)
+	fileHandler.RegisterRoutes(apiGroup)
+	authHandler.RegisterRoutes(apiGroup)
 	// Start server
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 	logging.GetGlobalLogger().Info("Starting server",

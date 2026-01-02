@@ -40,8 +40,8 @@ func (m *MockBrandRepository) GetByName(ctx context.Context, name string) (*enti
 	return args.Get(0).(*entities.Brand), args.Error(1)
 }
 
-func (m *MockBrandRepository) List(ctx context.Context) ([]*entities.Brand, error) {
-	args := m.Called(ctx)
+func (m *MockBrandRepository) List(ctx context.Context, categoryIDs []uuid.UUID) ([]*entities.Brand, error) {
+	args := m.Called(ctx, categoryIDs)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -267,10 +267,10 @@ func TestListBrands_Success(t *testing.T) {
 		{ID: uuid.New(), Name: "Brand 2"},
 	}
 
-	mockRepo.On("List", ctx).Return(expectedBrands, nil)
+	mockRepo.On("List", ctx, []uuid.UUID(nil)).Return(expectedBrands, nil)
 
 	// Act
-	result, err := service.ListBrands(ctx)
+	result, err := service.ListBrands(ctx, nil)
 
 	// Assert
 	require.NoError(t, err)

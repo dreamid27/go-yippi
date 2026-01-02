@@ -12,7 +12,7 @@ type BrandRepository interface {
 	Create(ctx context.Context, brand *entities.Brand) error
 	GetByID(ctx context.Context, id uuid.UUID) (*entities.Brand, error)
 	GetByName(ctx context.Context, name string) (*entities.Brand, error)
-	List(ctx context.Context) ([]*entities.Brand, error)
+	List(ctx context.Context, categoryIDs []uuid.UUID) ([]*entities.Brand, error)
 	Update(ctx context.Context, brand *entities.Brand) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }

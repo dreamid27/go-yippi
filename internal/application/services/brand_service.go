@@ -44,8 +44,8 @@ func (s *BrandService) GetBrandByName(ctx context.Context, name string) (*entiti
 	return s.repo.GetByName(ctx, name)
 }
 
-func (s *BrandService) ListBrands(ctx context.Context) ([]*entities.Brand, error) {
-	return s.repo.List(ctx)
+func (s *BrandService) ListBrands(ctx context.Context, categoryIDs []uuid.UUID) ([]*entities.Brand, error) {
+	return s.repo.List(ctx, categoryIDs)
 }
 
 func (s *BrandService) UpdateBrand(ctx context.Context, brand *entities.Brand) error {
